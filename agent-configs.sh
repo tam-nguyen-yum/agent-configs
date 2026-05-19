@@ -14,7 +14,7 @@ agent-configs() {
     esac
   done
 
-  local project="${args[0]}"
+  local project="${args[1]}"
   local configs_dir="$HOME/.agent-configs"
   local source_dir="$configs_dir/$project"
 
@@ -36,8 +36,7 @@ agent-configs() {
   local skipped=0
 
   while IFS= read -r -d '' subdir; do
-    local name
-    name="$(basename "$subdir")"
+    local name="$(basename "$subdir")"
     local target="$PWD/$name"
 
     if [[ -L "$target" ]] && [[ "$(readlink "$target")" == "$subdir" ]]; then
