@@ -113,10 +113,10 @@ If the user asks for a thorough review, or if you want to catch issues early:
 
 ```bash
 # Lint affected projects
-yarn nx affected -t lint --base=origin/<base_branch>
+pnpm nx affected -t lint --base=origin/<base_branch>
 
 # Type-check affected projects
-yarn nx affected -t type --base=origin/<base_branch>
+pnpm nx affected -t type --base=origin/<base_branch>
 ```
 
 Report any failures as Critical findings.

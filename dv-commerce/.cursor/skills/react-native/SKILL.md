@@ -289,10 +289,10 @@ describe('useMyFeature', () => {
 ### Run tests
 
 ```bash
-yarn test:expo          # all native tests
-yarn test:expo:uk       # UK app specifically
+pnpm test:expo          # all native tests
+pnpm test:expo:uk       # UK app specifically
 # or via nx:
-yarn nx test native-core-modules --testPathPattern="MyModule"
+pnpm nx test native-core-modules --testPathPattern="MyModule"
 ```
 
 ## Accessibility checklist

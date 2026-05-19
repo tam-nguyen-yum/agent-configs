@@ -30,7 +30,7 @@ Added settings to disable Nx Console's automatic MCP server:
 Replaced auto-generated MCP-focused rules with practical Nx workspace guidance:
 - Removed references to non-existent MCP tools (`nx_workspace`, `nx_docs`, etc.)
 - Added actual project structure information
-- Listed real commands that work: `yarn nx serve`, `yarn nx test`, etc.
+- Listed real commands that work: `pnpm nx serve`, `pnpm nx test`, etc.
 - Included import restrictions and conventions specific to this workspace
 
 **Why**:
@@ -72,8 +72,8 @@ To verify the fix worked:
 
 **We don't need it because:**
 1. AI can read `nx.json`, `project.json`, `tsconfig.base.json` directly
-2. User can run `yarn nx graph` manually when needed
-3. Generators can be run via terminal: `yarn nx generate`
+2. User can run `pnpm nx graph` manually when needed
+3. Generators can be run via terminal: `pnpm nx generate`
 4. Documentation is available via web search or `nx help`
 5. No other repos on this machine should be affected by workspace-specific settings
 

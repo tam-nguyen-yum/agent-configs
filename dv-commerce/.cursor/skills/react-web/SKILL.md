@@ -276,14 +276,14 @@ describe('useMyHook', () => {
 ### Run tests
 
 ```bash
-yarn test:web:uk          # UK web app
-yarn nx test web-core-modules --testPathPattern="MyModule"
+pnpm test:web:uk          # UK web app
+pnpm nx test web-core-modules --testPathPattern="MyModule"
 ```
 
 ### E2E (Cypress)
 
 ```bash
-yarn e2e:web:uk
+pnpm e2e:web:uk
 ```
 
 Always add `data-testid` on interactive elements so Cypress can target them reliably.
