@@ -1,0 +1,76 @@
+name: Dismiss approvals on non-developer push
+
+on:
+  pull_request_target:
+    types: [synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  dismiss:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate app token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CORE_APP_ID }}
+          private-key: ${{ secrets.CORE_APP_KEY }}
+
+      - name: Dismiss approvals if pusher is a non-developer
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          script: |
+            const pusher = context.payload.sender.login;
+            const org = context.repo.owner;
+            const pullNumber = context.payload.pull_request.number;
+
+            core.info(`Pusher: ${pusher} on PR #${pullNumber}`);
+
+            // Check team membership. Fails closed on auth/scope errors
+            // (i.e. skips dismissal rather than guessing).
+            let isNonDeveloper = false;
+            try {
+              await github.rest.teams.getMembershipForUserInOrg({
+                org,
+                team_slug: 'non-developers',
+                username: pusher,
+              });
+              isNonDeveloper = true;
+            } catch (error) {
+              if (error.status === 404) {
+                core.info(`${pusher} is not in @${org}/non-developers — no action.`);
+                return;
+              }
+              core.setFailed(
+                `Team membership lookup failed (status ${error.status}). ` +
+                `App token likely missing read:org scope. Not dismissing approvals.`
+              );
+              return;
+            }
+
+            if (!isNonDeveloper) return;
+
+            core.info(`${pusher} is in non-developers — dismissing stale approvals.`);
+
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: org,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+
+            const approvals = reviews.filter((r) => r.state === 'APPROVED');
+            for (const review of approvals) {
+              await github.rest.pulls.dismissReview({
+                owner: org,
+                repo: context.repo.repo,
+                pull_number: pullNumber,
+                review_id: review.id,
+                message:
+                  'Approval dismissed: a non-developer pushed new commits. ' +
+                  'A member of @pizzahutuk/developers must re-approve the latest state.',
+              });
+              core.info(`Dismissed approval ${review.id} from ${review.user.login}`);
+            }

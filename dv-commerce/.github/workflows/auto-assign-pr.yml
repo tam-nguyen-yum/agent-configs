@@ -1,0 +1,22 @@
+name: Auto assign PR
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Auto assign PR
+        run: |
+          author=$(gh pr view ${{ github.event.pull_request.number }} --json author --template '{{.author.login}}')
+          gh pr edit ${{ github.event.pull_request.number }} --add-assignee $author
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

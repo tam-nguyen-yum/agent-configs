@@ -1,0 +1,5 @@
+# Codeowners
+
+# Coarse gate, not ownership: every PR requires approval from at least one
+# member of @pizzahutuk/developers. Any single member's approval clears it.
+* @pizzahutuk/developers

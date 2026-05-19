@@ -1,0 +1,53 @@
+name: Feature Preview Links
+on: [pull_request]
+
+jobs:
+  feature-preview-links:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - id: generate_message
+        shell: bash
+        run: |
+          # Use the pull request head SHA from GitHub context.
+          commit="${{ github.event.pull_request.head.sha }}"
+
+          # Define an array with market data: code, display name, flag emoji.
+          markets=(
+            "ca|Canada|🇨🇦"
+            "fr|France|🇫🇷"
+            "jp|Japan|🇯🇵"
+            "kw|Kuwait|🇰🇼"
+            "mx|Mexico|🇲🇽"
+            "pe|Peru|🇵🇪"
+            "uk|United Kingdom|🇬🇧"
+            "kfc-au|KFC Austrailia|🇦🇺🍗"
+            "pr|Puerto Rico|🇵🇷"
+            "tb-uk|Taco Bell UK|🇬🇧🌮"
+          )
+          
+          message="## Preview Links for Web\n"
+          # Build the markdown table header.
+          message+="| Market | Staging | Production |\n"
+          message+="| --- | --- | --- |\n"
+
+          # Loop through each market to build table rows.
+          for entry in "${markets[@]}"; do
+            IFS='|' read -r code name flag <<< "$entry"
+            staging_link="https://${commit}.${code}.feature.maverick.staging.phdt.io"
+            prod_link="https://${commit}.${code}.feature.maverick.prod.phdt.io"
+            message+="| ${name} ${flag} | [Preview](${staging_link}) | [Preview](${prod_link}) |\n"
+          done
+
+          message+="\nPlease note, the URLs might take a few minutes to be available after the build is complete."
+
+          # Write the message to GITHUB_OUTPUT so later steps can use it.
+          echo "message<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$message" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+          message: ${{ steps.generate_message.outputs.message }}
+          message-id: feature-preview
