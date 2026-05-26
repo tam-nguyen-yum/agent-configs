@@ -5,6 +5,12 @@
         "source": "github",
         "repo": "nrwl/nx-ai-agents-config"
       }
+    },
+    "cursor-skills": {
+      "source": {
+        "source": "directory",
+        "path": ".cursor/skills"
+      }
     }
   },
   "enabledPlugins": {
