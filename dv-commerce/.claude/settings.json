@@ -5,16 +5,11 @@
         "source": "github",
         "repo": "nrwl/nx-ai-agents-config"
       }
-    },
-    "cursor-skills": {
-      "source": {
-        "source": "directory",
-        "path": ".cursor/skills"
-      }
     }
   },
   "enabledPlugins": {
-    "nx@nx-claude-plugins": true
+    "nx@nx-claude-plugins": true,
+    "figma@claude-plugins-official": true
   },
   "enableAllProjectMcpServers": true
 }

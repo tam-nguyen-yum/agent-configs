@@ -1,53 +1,59 @@
 ---
 name: kfc-web
-description: KFC brand-specific web UI patterns — location flow, OccasionFirstDialog, and re-localization. Use when working in libs/brand-kfc/, apps/web-app-au/, or when the user mentions KFC location, occasion dialog, re-localize, or store selection on web.
+description: KFC brand-specific web & native UI patterns — location flow, OccasionFirstDialog, cart dialog, and re-localization. Use when working in libs/brand-kfc/, apps/web-app-kfc-au/, apps/expo-app-kfc-au/, or when the user mentions KFC location, occasion dialog, cart dialog, re-localize, or store selection.
 ---
 
-# KFC Web — Brand-Specific Patterns
+# KFC — Brand-Specific Patterns
 
-> KFC overrides several core web modules with brand-specific implementations in `libs/brand-kfc/`.
+> KFC overrides several core modules with brand-specific implementations in `libs/brand-kfc/`.
 
 ## Key paths
 
 | What | Where |
 |------|-------|
 | KFC brand library | `libs/brand-kfc/src/` |
-| OccasionFirstDialog module | `libs/brand-kfc/src/modules/OccasionFirstDialog/index.tsx` |
-| Dialog content (order details) | `libs/brand-kfc/src/location/OccasionFirstDialog/` |
+| Web module overrides | `libs/brand-kfc/src/modules/index.ts` |
+| Native module overrides | `libs/brand-kfc/src/modules/index.native.ts` |
+| OccasionFirstDialog (web) | `libs/brand-kfc/src/modules/OccasionFirstDialog/index.tsx` |
+| KFC Cart page screen (web) | `libs/brand-kfc/src/screens/Cart/index.tsx` |
 | Location chip (header button) | `libs/brand-kfc/src/modules/AppBarLocation/LocationButton.tsx` |
-| URL-driven locator modal hooks | `libs/brand-kfc/src/location/hooks/` |
+| Native MenuListStackNavigator | `libs/brand-kfc/src/native/navigation/MenuListStackNavigator.tsx` |
 | Core location dialog wiring | `libs/web-core-framework/src/location/components/location-dialog/` |
-| Core URL detection logic | `libs/core/src/dom/sagas/detectors/` |
 
-## Re-localization flow (location chip → OccasionFirstDialog)
+> Note: KFC no longer overrides the cart via a `CartDialog` module/`CartDialogModule` (those paths
+> are gone from source; only stale coverage artifacts remain). KFC now has a dedicated `/cart` **page
+> screen** at `libs/brand-kfc/src/screens/Cart/index.tsx` that renders core `InteractiveCart`.
 
-Clicking the **location chip** in the header opens the re-localize screen. This is how it works:
+## Dialog pattern (shared by location & cart)
 
-1. **Trigger** — `LocationButton` (`data-testid="location-chip"`) in the app bar calls `handleChangeLocation`, which dispatches a locator entry-point action.
-2. **URL change** — The router updates the URL to `/?modal=location&type=relocation`. The `modal` and `type` query params drive the dialog open/close state.
-3. **Dialog** — `OccasionFirstDialog` renders a **MUI Dialog** (`data-testid="occasion-first-dialog"`):
-   - **Mobile**: fullscreen (`fullScreen={!mdUp}`) with a slide-up transition
-   - **Desktop**: centered modal with `minWidth: 'sm'`, positioned below the header
-4. **Content** resolves based on state:
-   - No occasion selected → `OccasionFirstSelection` (pick Delivery/Collection)
-   - Occasion is ORDER → `OccasionFirstDialogContent` (shows order type, location, time with Change buttons + Confirm CTA)
-   - Occasion is DELIVERY → `DeliveryLocationFlow` (address search)
-5. **Close** — Closing the dialog dispatches `LOCATOR_DIALOG_ABANDONED` if no location was confirmed, and strips the `modal` query param from the URL.
+KFC uses **URL-query-param-driven MUI Dialogs** for overlay screens. The pattern is:
 
-### Important details
+1. A trigger sets `?modal=<type>` on the current URL
+2. An orchestrator module reads the query param and opens the dialog
+3. Mobile: true fullscreen with slide-up transition (covers entire viewport); Desktop: centered modal
+4. Closing strips the `modal` param and stays on the current page
+5. No `top: headerHeight` offset — the dialog covers the full viewport including header
 
-- The dialog sits **below the header** (`top: headerHeight`), not a true full-viewport takeover.
-- The backdrop also offsets by `headerHeight` so the header remains visible and interactive.
-- On desktop, the dialog is a centered modal (not fullscreen).
-- The `disableScrollLock` prop means the page behind is still scrollable.
-- URL is the source of truth — deep-linking to `/?modal=location&type=relocation` opens the dialog directly.
+### Re-localization flow (`?modal=location&type=relocation`)
 
-## Location chip anatomy
+- **Trigger**: `LocationButton` (`data-testid="location-chip"`) dispatches locator entry-point action
+- **Dialog**: `OccasionFirstDialog` (`data-testid="occasion-first-dialog"`)
+- **Content**: OccasionFirstSelection → OccasionFirstDialogContent or DeliveryLocationFlow
 
-`LocationButton` renders differently by breakpoint:
+## Cart (web)
 
-- **Mobile**: Shows only the occasion label (e.g. "Delivery")
-- **Desktop**: Shows `"Delivery · Frenchs Forest, Northern Beaches Council, 2086"` via i18n key `header.locationChip.label`
+KFC renders the cart on a dedicated `/cart` **page screen** (`libs/brand-kfc/src/screens/Cart/index.tsx`),
+not a query-param dialog. The screen:
+- Uses a side-by-side desktop layout (items left `xl={7}`, sticky order summary right `xl={4}`).
+- Renders core `InteractiveCart` (from `@byte-storefronts/core-web/cart/components`) for the line-item list,
+  coupons, cross-sell, and loyalty; plus `PaymentSummaryButton` + `AvailableCardPaymentMethods`.
+- `InteractiveCart` is shared across **three** surfaces — the `/cart` page, the `SideCart`
+  (`asCards={false}`), and the generic `CartList` screen — so changes to it affect all three.
+  It exposes an optional `renderLineItem` slot for brand-specific line-item UI without forking the component.
+
+## Native cart presentation
+
+On native, KFC's `MenuListStackNavigator` presents the cart as a **fullScreenModal** with `slide_from_bottom` animation instead of a regular stack push. This gives the cart a modal feel (slides up, swipe down to dismiss) while reusing the same `CartList` screen component.
 
 ## Testing selectors
 
@@ -55,10 +61,16 @@ Clicking the **location chip** in the header opens the re-localize screen. This 
 |---------|----------|
 | Location chip button | `[data-testid="location-chip"]` |
 | Occasion dialog wrapper | `[data-testid="occasion-first-dialog"]` |
+| Cart page | `[data-testid="cart-page"]` |
 
 ## Common pitfalls
 
-- The attribute is `data-testid`, not `data-id` — use `data-testid="location-chip"` in selectors
-- Don't look for a route change to a `/location` page — it's a query-param-driven dialog, not a separate page
-- The dialog content is in `libs/brand-kfc/src/location/` (not in the `modules/` folder where the dialog shell lives)
+- The attribute is `data-testid`, not `data-id`
+- Location: don't look for a route change to `/location` — KFC uses a query-param-driven dialog.
+  Cart, however, **is** a real `/cart` page route (no longer a dialog).
+- The location dialog content components are in `libs/brand-kfc/src/location/` (not in `modules/`)
 - `DeliveryLocationFlow` is imported from `@byte-storefronts/core-web`, not from brand-kfc
+- Cart components (`InteractiveCart`, `PaymentSummaryButton`, etc.) are exported from `@byte-storefronts/core-web/cart`
+- `InteractiveCart` is shared by the `/cart` page, the side cart, and the generic `CartList` screen —
+  brand-specific line-item UI should use its `renderLineItem` slot rather than editing the shared DSC `BasketItem`
+- Native cart uses the same `CartList` screen — only the navigation presentation changes
