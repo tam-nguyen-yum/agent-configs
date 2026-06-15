@@ -5,6 +5,18 @@ description: Guides development of React Native / Expo screens, components, modu
 
 # React Native — dv-commerce
 
+## Package scope (read first)
+
+Every internal import uses the **`@byte-storefronts/*`** scope — there is no `@phdv/*`. The aliases are defined in `tsconfig.base.json`. The ones you'll use most:
+
+| Alias | Maps to | Holds |
+|-------|---------|-------|
+| `@byte-storefronts/types` | `libs/types/src` | All prop & domain types |
+| `@byte-storefronts/core` (+ subpaths `/menu`, `/cart`, `/globalState`, …) | `libs/core/src` | Cross-platform state, selectors, domain hooks |
+| `@byte-storefronts/core-native` (+ `/shared`, `/modules`, `/routing`, `/blueprint`, `/globalState`, `/tracking`) | `libs/native-core-framework/src` | Screens, navigation, hooks, framework bootstrap |
+| `@byte-storefronts/core-native-modules` | `libs/native-core-modules/src` | Default modules + `getModule()` |
+| `@byte-storefronts/dsc-native` | `libs/dsc-react-native/src` | Design-system components, `useTheme`, theme types |
+
 ## Key paths
 
 | What | Where |
@@ -15,13 +27,15 @@ description: Guides development of React Native / Expo screens, components, modu
 | Market overrides | `apps/expo-app-[market]/src/modules/` |
 | Module prop types | `libs/types/src/modules/` |
 
+Markets present under `apps/`: `expo-app-uk`, `expo-app-ca`, `expo-app-fr`, `expo-app-jp`, `expo-app-mx`, `expo-app-pr`, `expo-app-kw`, `expo-app-kfc-au`, `expo-app-tb-uk`, plus `expo-app-template`.
+
 ## Non-negotiables
 
 - **Use DSC for UI components** (`@byte-storefronts/dsc-native`) — `Text`, `Button`, `Surface`, `Card`, `TextInput`, etc. must come from DSC, not raw RN. Layout/interaction primitives (`View`, `TouchableOpacity`, `ScrollView`, `StyleSheet`) are fine from `react-native` directly.
 - **Unit tests mandatory** for all logic; view-only components only need tests if they contain logic
 - Must work on both **iOS and Android**
-- Module types must live in `@phdv/types` before implementing the module
-- Never import from web libraries — no `@phdv/dsc-react-web`, `@phdv/web-core-framework`, etc.
+- Module types must live in `@byte-storefronts/types` before implementing the module
+- Never import from web libraries — no `@byte-storefronts/dsc-web`, `@byte-storefronts/core-web`, etc.
 
 ## Creating a native module
 
@@ -42,7 +56,7 @@ export type MyModuleProps = {
 import React from 'react'
 import { TouchableOpacity } from 'react-native'
 import { Surface, Text } from '@byte-storefronts/dsc-native'
-import type { MyModuleProps } from '@phdv/types'
+import type { MyModuleProps } from '@byte-storefronts/types'
 
 const MyModule: React.FC<MyModuleProps> = ({ title, onPress }) => (
   <TouchableOpacity
@@ -61,21 +75,17 @@ const MyModule: React.FC<MyModuleProps> = ({ title, onPress }) => (
 export default MyModule
 ```
 
-### 3. Register in `defaultModuleDefinition`
+### 3. Register it in the module definition
 
-```typescript
-// libs/native-core-modules/src/modules/index.tsx
-export const defaultModuleDefinition = {
-  MyModule,
-  // ... existing modules
-}
-```
+The default module set lives in `libs/native-core-modules/src/index.ts` (an internal `const`, not an exported `defaultModuleDefinition`). Add your module there so `getModule()` can resolve it. Don't import that const directly — go through `getModule()`.
 
 ### 4. Market override (only when needed)
 
+Place the override in the market app and register it with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
+
 ```typescript
 // apps/expo-app-uk/src/modules/MyModule.tsx
-import type { MyModuleProps } from '@phdv/types'
+import type { MyModuleProps } from '@byte-storefronts/types'
 
 const MyModuleUK: React.FC<MyModuleProps> = ({ title, onPress }) => (
   // UK-specific implementation
@@ -86,10 +96,11 @@ export default MyModuleUK
 
 ### 5. Consume via orchestration
 
-Use `getModule()` to resolve the correct implementation (core or market override):
+Resolve the active implementation (core or market override) with `getModule()`:
 
 ```typescript
-import { getModule, useStoreSelector } from '@phdv/core'
+import { getModule } from '@byte-storefronts/core-native-modules'
+import { useStoreSelector } from '@byte-storefronts/core/globalState'
 
 const MyOrchestrator: React.FC = () => {
   const data = useStoreSelector(selectMyData)
@@ -99,11 +110,24 @@ const MyOrchestrator: React.FC = () => {
 }
 ```
 
+### 6. Wire overrides at app startup
+
+Market apps register overrides in their `App.tsx` with `loadModules()` — it shallow-merges over the defaults:
+
+```typescript
+// apps/expo-app-uk/src/App.tsx
+import { loadModules } from '@byte-storefronts/core-native/modules'
+import * as nativeModules from './modules'
+import CallToRegister from './modules/CallToRegister'
+
+loadModules({ ...nativeModules, CallToRegister })
+```
+
 ## Screens
 
 ```typescript
 // libs/native-core-framework/src/screens/MyScreen.tsx
-import { Screen } from '../shared/components/Screen'
+import Screen from '../shared/components/Screen'
 import { useAppNavigation } from '../shared/hooks/useAppNavigation'
 import { useTranslation } from 'react-i18next'
 
@@ -119,7 +143,7 @@ export const MyScreen = () => {
 }
 ```
 
-Always use `useAppNavigation()` (typed) — not the raw `useNavigation()` hook.
+Always use `useAppNavigation()` (typed) — not the raw `useNavigation()` hook. Inside the framework, import it from `../shared/hooks/useAppNavigation`; from a market app it is re-exported via `@byte-storefronts/core-native/shared`.
 
 ## Navigation
 
@@ -140,9 +164,11 @@ export const MyStackNavigator = () => {
 
 ## DSC components & theming
 
+`useTheme` and the theme types come from the package **root**, not a `/theme` subpath:
+
 ```typescript
-import { Button, Text, Surface, TextInput, Card } from '@byte-storefronts/dsc-native'
-import { useTheme } from '@byte-storefronts/dsc-native/theme'
+import { Button, Text, Surface, TextInput, Card, useTheme } from '@byte-storefronts/dsc-native'
+import type { DSCNativeTheme } from '@byte-storefronts/dsc-native'
 
 const MyComponent = () => {
   const { themeTokens } = useTheme()
@@ -155,7 +181,7 @@ const MyComponent = () => {
 }
 ```
 
-Always use `themeTokens.*` for spacing, colors, and typography — never hardcode values.
+`useTheme()` returns a `DSCNativeTheme` (react-native-paper based) — `themeTokens` is one field alongside `themeName`, `themeVariant`, `themeAssets`, `componentsConfig`, `isRtlLayout`, and the Paper theme props. Always use `themeTokens.*` for spacing (`spacing200`), colors (`colorBackgroundFoundation`, `colorBackgroundPaper`, …), and typography — never hardcode values.
 
 ## Styling: platform differences & safe areas
 
@@ -204,9 +230,9 @@ import { FlashList } from '@shopify/flash-list'
 ## Loading & error states
 
 ```typescript
-import { LoadingOverlay } from '../shared/components/LoadingOverlay'
+import LoadingOverlay from '../shared/components/LoadingOverlay'
 import { ErrorBoundary } from 'react-error-boundary'
-import { ErrorFallback } from '../shared/components/ErrorFallback'
+import ErrorFallback from '../shared/components/ErrorFallback'
 
 const MyScreen = () => {
   const { data, isLoading } = useMyData()
@@ -221,8 +247,10 @@ const MyScreen = () => {
 
 ## Bottom sheets
 
+`BottomDrawer` (in `libs/native-core-framework/src/shared/components/`) is a framework wrapper around the DSC `BottomSheet` — prefer it over wiring the raw DSC component yourself:
+
 ```typescript
-import { BottomDrawer } from '../shared/components/BottomDrawer'
+import BottomDrawer from '../shared/components/BottomDrawer'
 
 <BottomDrawer visible={isOpen} onDismiss={() => setOpen(false)} testID="my-sheet">
   <SheetContent />
@@ -288,10 +316,17 @@ describe('useMyFeature', () => {
 
 ### Run tests
 
+Scope tests to the library you changed — don't run the whole suite:
+
 ```bash
-pnpm test:expo          # all native tests
-pnpm test:expo:uk       # UK app specifically
-# or via nx:
+pnpm test:native-core       # native-core-framework
+pnpm test:native-modules    # native-core-modules
+pnpm test:native-dsc        # dsc-react-native
+pnpm test:native-shared     # native-shared
+pnpm test:expo              # expo-app-uk (default app suite)
+pnpm test:expo:kw           # expo-app-kw
+
+# Target a single file via nx:
 pnpm nx test native-core-modules --testPathPattern="MyModule"
 ```
 
@@ -311,7 +346,7 @@ Every interactive element needs:
 
 ## Deep linking
 
-Use the route transform and Branch.io hooks from the framework:
+`useBranch` (`libs/native-core-framework/src/linking/hooks/useBranch.ts`) is the Branch.io integration handler — it manages link state, permissions, and routing:
 
 ```typescript
 import { useBranch } from '../linking/hooks/useBranch'
@@ -327,12 +362,14 @@ const MyComponent = () => {
 
 ## Common pitfalls
 
-- Creating a module without a type in `@phdv/types` first
-- Using DSC-available components (`Text`, `Button`, `Card`) from `react-native` instead of `@byte-storefronts/dsc-native`
+- Using the `@phdv/*` scope — it doesn't exist; everything is `@byte-storefronts/*`
+- Importing `useTheme` from a `/theme` subpath — it's exported from `@byte-storefronts/dsc-native` root
+- Creating a module without a type in `@byte-storefronts/types` first
+- Using DSC-available components (`Text`, `Button`, `Card`, `Surface`) from `react-native` instead of `@byte-storefronts/dsc-native`
+- Importing the internal module definition directly instead of resolving via `getModule()` / registering with `loadModules()`
 - Forgetting safe area insets on screens with custom headers
 - Using `useNavigation()` instead of typed `useAppNavigation()`
 - Hardcoding pixel dimensions instead of using flex or theme tokens
 - Ignoring Android back button / keyboard avoidance
-- Not testing on both platforms
 - Using `FlatList` for long lists (use `FlashList` instead)
 - Using the RN `Image` component (use `expo-image` instead)

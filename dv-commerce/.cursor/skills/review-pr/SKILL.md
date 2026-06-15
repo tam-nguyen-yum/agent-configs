@@ -26,12 +26,12 @@ git remote get-url origin
 
 ### Resolve branch or current branch to a PR number
 
-Use **GitHub MCP** (`server: "user-github"`). Read the tool schema in your MCP filesystem (e.g. `mcps/user-github/tools/list_pull_requests.json`) before calling.
+Use the **GitHub MCP** tools, which are named `mcp__plugin_github_github__*` and are deferred — load a tool's schema with **ToolSearch** before calling it, e.g. `select:mcp__plugin_github_github__list_pull_requests`. (The `gh` CLI is not installed in this environment, so there is no shell fallback.)
 
-When you have a branch name or the current branch but no PR number, call **`list_pull_requests`**:
+When you have a branch name or the current branch but no PR number, call **`mcp__plugin_github_github__list_pull_requests`**:
 
 ```
-call_mcp_tool(server: "user-github", toolName: "list_pull_requests", arguments: {
+mcp__plugin_github_github__list_pull_requests({
   owner: "<owner>",
   repo: "<repo>",
   state: "open",
@@ -43,11 +43,11 @@ call_mcp_tool(server: "user-github", toolName: "list_pull_requests", arguments: 
 
 If multiple PRs match, prefer the one whose head ref matches the branch name, or ask the user.
 
-If `list_pull_requests` is insufficient, fall back to **`search_pull_requests`** with a scoped query (`owner`, `repo`, and GitHub PR search syntax).
+If `list_pull_requests` is insufficient, fall back to **`mcp__plugin_github_github__search_pull_requests`** with a scoped query (`owner`, `repo`, and GitHub PR search syntax).
 
 ## Step 1: Fetch PR Context
 
-Use **GitHub MCP** (`server: "user-github"`). Read `mcps/user-github/tools/pull_request_read.json` before calling.
+Use **`mcp__plugin_github_github__pull_request_read`** (load its schema via ToolSearch first: `select:mcp__plugin_github_github__pull_request_read`).
 
 Run **`pull_request_read`** **in parallel** for the same `owner`, `repo`, and `pullNumber` (a **number**, not a string):
 
@@ -64,7 +64,7 @@ Run **`pull_request_read`** **in parallel** for the same `owner`, `repo`, and `p
 Example (repeat per `method`):
 
 ```
-call_mcp_tool(server: "user-github", toolName: "pull_request_read", arguments: {
+mcp__plugin_github_github__pull_request_read({
   method: "get",
   owner: "<owner>",
   repo: "<repo>",
@@ -84,7 +84,7 @@ From the combined responses, extract: title, description, base branch, head bran
 
 2. **Read each changed file in full** — review the diff in the context of the surrounding code, not in isolation.
 
-3. **For large files (>500 lines)**: use SemanticSearch scoped to the file rather than reading the entire file.
+3. **For large files (>500 lines)**: use Grep to jump to the changed regions and read around them with `offset`/`limit`, rather than reading the entire file. Delegate broad cross-file sweeps to the Explore agent and keep only the conclusion.
 
 ## Step 3: Load Domain Context
 
@@ -103,41 +103,67 @@ For each affected library or app, read its domain-specific guidance:
 | `apps/web-app-*` | `libs/web-core-modules/CLAUDE.md` (for override rules) |
 | `apps/expo-app-*` | `libs/native-core-modules/CLAUDE.md` (for override rules) |
 
-Also read `CLAUDE_MEMORY.md` at the repo root — it contains cross-cutting review patterns.
+Cross-cutting review patterns live in the per-library `CLAUDE_MEMORY.md` files (e.g. `libs/core/CLAUDE_MEMORY.md`, `libs/dsc-react-web/CLAUDE_MEMORY.md`) — there is no repo-root `CLAUDE_MEMORY.md`. Read the memory file for each affected library.
+
+When the diff touches **web** code, also consult the `react-web` skill; when it touches **native** code, consult the `react-native` skill — these are the source of truth for platform conventions, package scopes, and APIs, and are kept in sync with the codebase. Prefer them over re-deriving rules here (see Step 5).
 
 Only read files that exist; skip gracefully if a CLAUDE.md is missing for a path.
 
-## Step 4: Run Automated Checks (optional)
+## Step 4: Run Automated Checks (skip by default)
 
-If the user asks for a thorough review, or if you want to catch issues early:
+**CI already runs lint, type-check, and tests on every PR** — don't re-run them as part of a review. `nx affected` recomputes the project graph against the base and is slow; running it locally rarely adds value over reading CI status.
+
+Instead, **read the PR's CI status** (via `mcp__plugin_github_github__pull_request_read` / check runs) and report any red checks as `[CRITICAL]`.
+
+Only run a check locally when **all** of these hold: the user explicitly asked for a thorough/local verification, CI status is unavailable, and you can scope it to the changed project(s):
 
 ```bash
-# Lint affected projects
-pnpm nx affected -t lint --base=origin/<base_branch>
-
-# Type-check affected projects
-pnpm nx affected -t type --base=origin/<base_branch>
+# Scope to the specific project(s) the PR touches — not the whole affected graph
+pnpm nx run <project>:lint
+pnpm nx run <project>:type
 ```
-
-Report any failures as Critical findings.
 
 ## Step 5: Review Against Project Standards
 
 Work through each changed file and evaluate against these categories. Skip categories that don't apply to the file type.
 
+> **Platform conventions are owned by the `react-web` and `react-native` skills.** For web changes, the `react-web` skill is the authoritative checklist (package scopes, DSC usage, `initApp`/`moduleMap`, routing, dialogs); for native changes, the `react-native` skill is. The categories below are review-specific judgment (wiring, architecture, security, tests) plus a condensed restatement of the platform rules — when they disagree with those skills, the skills win. Don't re-derive platform rules from memory.
+
+### Package scopes (get these right)
+
+| Scope | Meaning |
+|-------|---------|
+| `@byte-storefronts/*` | This repo's **workspace libraries** (`core`, `core-web`, `core-web-modules`, `core-native`, `core-native-modules`, `dsc-web`, `dsc-native`, `types`, …) — 130+ tsconfig path aliases into `libs/`. Edited here. |
+| `@byte-helium/*` | **External** packages from the Helium GitLab registry (e.g. `@byte-helium/coding-standards`). Not editable in this repo. |
+| `@phdv/*` | Legacy scope, **only** `@phdv/e2e`, `@phdv/e2e/node`, `@phdv/design-tokens`. Everything else that looks like `@phdv/*` (e.g. `@phdv/types`, `@phdv/core`, `@phdv/dsc-react-web`) is **wrong** — flag it. |
+
+### Complete Wiring (cross-file check — do not skip)
+
+Most categories below are per-file; this one requires comparing the diff against the rest of the repo. When the PR **adds a new component, screen, hook, or module that supersedes an existing one** (e.g. a brand-specific `PreferenceCenter` replacing the core `Preferences` screen):
+
+1. **Find every registration site of the old implementation** — grep the repo (scoped to the affected brand/platform) for the superseded export name and its import path:
+   ```bash
+   grep -rn "<OldName>\|<old-import-path>" libs/<affected-lib>/src apps/<affected-apps>
+   ```
+2. **Check that all sites the PR should cover are updated.** If the new component is wired in one navigator/route/module but an old registration remains elsewhere for the same purpose, flag it as `[CRITICAL]` — the old UI will still render on that path.
+3. **Check registration-key consistency**: when the same key (e.g. `nativeRoute.PREFERENCES`, a module override key, a route path) is registered in multiple navigators or module maps, all registrations must point to the same component unless the divergence is clearly intentional.
+4. Apply the same sweep to renamed translation keys, test IDs, and feature flags: a replacement is only complete when no consumer still references the superseded one (unless the old implementation is intentionally kept for other markets/brands — confirm by checking who still imports it).
+
+This check applies with extra force when **reviewing your own PR before requesting review** — it catches the "added the new thing, forgot to unhook the old thing somewhere" gap that per-file reading misses.
+
 ### Architecture Boundaries
 
-- No web ↔ native cross-imports (`@phdv/dsc-react-native` in web code or vice versa)
+- No web ↔ native cross-imports (`@byte-storefronts/dsc-native` / `core-native` in web code, or `dsc-web` / `core-web` in native code)
 - No market-specific logic in core libraries (`libs/core/`, `libs/web-core-modules/`, etc.)
 - Modules must not interact with the Redux store directly
 - Reusable logic belongs in sagas, not hooks
-- `@byte-storefronts/*` packages are external — changes belong in byte-helium, not here
+- `@byte-helium/*` packages are external (Helium registry) — changes belong in that repo, not here. `@byte-storefronts/*` are this repo's libs and are fair game.
 
 ### Module System
 
 - Market override must have a corresponding core module
-- Module types must be defined in `@phdv/types` before implementation
-- Override key in `appModule` must match the core module export name
+- Module types must be defined in `@byte-storefronts/types` before implementation
+- Override key in `moduleMap` (passed to `initApp` on web, `loadModules` on native) must match the core module export name
 - Core modules define defaults; markets configure, core provides
 
 ### Redux & Saga Patterns
@@ -155,28 +181,37 @@ Work through each changed file and evaluate against these categories. Skip categ
 - Reference stability maintained for props passed to memoized children
 - Lazy loading for heavy components with `Suspense` + skeleton fallback
 
+#### Loops & lists (check explicitly)
+
+- **Stable, unique `key`s** on mapped elements — never the array index when items can reorder/insert/delete
+- **No expensive work per iteration in render** — sorting, filtering, mapping over large arrays, or building new objects inside the JSX should be hoisted into `useMemo` (web) or precomputed, not recomputed every render
+- **List rows are memoized** when the list is long or re-renders often, and their props are reference-stable (callbacks via `useCallback`, not fresh closures per row)
+- **Native long lists use `FlashList`** (`@shopify/flash-list`) with a sensible `estimatedItemSize`, not `FlatList` or a `.map()` inside a `ScrollView`
+- **No `O(n²)` patterns** — e.g. `.find()` / `.includes()` inside a `.map()` over the same large array; prefer a `Map`/`Set` lookup built once
+- Async work is **not** kicked off per-item inside a render loop (effects/requests belong outside the map, batched where possible)
+
 ### TypeScript
 
 - `type` over `interface`
 - No `any` — use `unknown` with type guards or proper generic constraints
 - Descriptive naming consistent with existing patterns
-- Absolute imports using `@phdv/*` paths, not deep relative paths
+- Absolute imports using `@byte-storefronts/*` workspace aliases, not deep relative paths (`../../../`)
 
 ### React Patterns
 
 - Functional components only (no class components)
 - No conditional hooks or conditional early returns before hooks
-- DSC components (`@phdv/dsc-react-web` or `@byte-storefronts/dsc-native`) over raw HTML/MUI/RN primitives
+- DSC components (`@byte-storefronts/dsc-web` or `@byte-storefronts/dsc-native`) over raw HTML/MUI/RN primitives
 - `data-testid` on interactive elements for E2E targeting
-- Dialogs via `useDialog()`, not local modal state
+- Web dialogs are rendered centrally by the `Dialogs` component and driven by feature hooks/state (e.g. `useSwapCouponsDialog`) — not ad-hoc local modal state, and not a generic `useDialog()` (no such hook exists)
 
 ### Testing
 
 - Unit tests present for all new/changed business logic
 - Test quality: tests describe behavior, not implementation
 - Snapshot tests only for intentional UI output verification
-- 80%+ coverage target for new code
-- E2E coverage for user-facing flows
+- Important branches and edge cases are exercised (judge coverage qualitatively from the diff — don't run a coverage report; it's slow and CI tracks the threshold)
+- E2E coverage for user-facing flows (E2E execution can be left to CI)
 
 ### Security
 
@@ -192,15 +227,11 @@ Work through each changed file and evaluate against these categories. Skip categ
 - Landmark regions (`<nav>`, `<main>`) are labeled
 - Interactive elements are keyboard-accessible (`onClick` on non-button → check for `onKeyDown`)
 
-### SSR Safety (web only)
+### Browser-global safety (web)
 
-- `typeof window !== 'undefined'` guard before accessing `window`, `document`, `localStorage`
+The web app is **client-rendered (Webpack/Nx), not SSR**, so this is a low-priority check — only flag it when code runs outside the browser. Shared utilities, config, and node-side build code that touch `window`, `document`, or `localStorage` should guard with `typeof window !== 'undefined'`. Inside a normal React component body it's a non-issue.
 
-### Import Correctness
-
-- `@phdv/*` for workspace libraries
-- `@byte-storefronts/*` for external packages (not relative paths into node_modules)
-- No platform boundary violations
+> Import-scope and platform-boundary correctness are already covered by the **Package scopes** table and **Architecture Boundaries** above — apply those, don't re-check separately here.
 
 ## Step 6: Format the Review
 
@@ -254,38 +285,18 @@ Structure findings using severity levels:
 
 Always include at least one `[PRAISE]` item when something is done well — the team culture values celebrating good work.
 
-## Step 7: Submit or Display
+## Step 7: Display the Review
 
-| Mode | Action |
-|------|--------|
-| **Display** (default) | Show the review in the conversation |
-| **Submit** | Post to GitHub via MCP when user explicitly asks |
+**Always display the review in the conversation — never post it to GitHub.** Do not submit reviews, comments, approvals, or change requests to the PR. The `pull_request_review_write` tool and any other write-back to the PR are out of scope for this skill; the user takes the displayed review and acts on it themselves.
 
-To submit via GitHub MCP:
-
-```
-call_mcp_tool(server: "user-github", toolName: "pull_request_review_write", arguments: {
-  method: "create",
-  owner: "<owner>",
-  repo: "<repo>",
-  pullNumber: <number>,
-  body: "<formatted review text>",
-  event: "COMMENT"
-})
-```
-
-Use `event`: `COMMENT` for a general / comment-only review, `REQUEST_CHANGES` when critical issues must block merge, and `APPROVE` **only** if the user explicitly asked you to approve. Align `event` with your overall verdict.
-
-If the API errors on commit targeting, set `commitID` to the head SHA from `pull_request_read` with `method: "get"` and retry.
-
-Never approve automatically — always confirm with the user before using `APPROVE`.
+If the user explicitly asks you to post the review to GitHub, stop and confirm that intent before doing anything — it is not part of the normal flow.
 
 ## Step 8: Surface Learnings
 
 If the review reveals a new pattern, anti-pattern, or architectural insight:
 
-1. Ask the user if it should be added to the relevant `CLAUDE_MEMORY.md`
-2. Use the memory format from `CLAUDE_MEMORY.md`:
+1. Ask the user if it should be added to the affected library's `CLAUDE_MEMORY.md` (e.g. `libs/core/CLAUDE_MEMORY.md`, `libs/dsc-react-web/CLAUDE_MEMORY.md`) — or, if it's a platform convention, to the `react-web` / `react-native` skill instead
+2. Use the memory format already in that file:
    ```markdown
    ### <Title>
    - **PR**: #<number> - <brief description>
@@ -307,7 +318,7 @@ Do not review these — they are generated or vendored:
 
 ## Common Pitfalls to Watch For
 
-These are the most frequently caught issues in this codebase (from CLAUDE_MEMORY.md):
+These are the most frequently caught issues in this codebase (drawn from the per-library `CLAUDE_MEMORY.md` files):
 
 1. **Global state selectors** — selecting entire slices instead of specific fields
 2. **Conditional hooks** — `if (x) return; useEffect(...)` violates Rules of Hooks
@@ -315,3 +326,4 @@ These are the most frequently caught issues in this codebase (from CLAUDE_MEMORY
 4. **Missing edge cases** — "What if both states are true?" (PR #4901 pattern)
 5. **Debug code left in** — `console.log`, hardcoded values, temporary changes
 6. **Wrong abstraction level** — component logic that should be a saga or service
+7. **Incomplete replacement wiring** — a new component supersedes an old one, but a navigator/route/module map elsewhere still registers the old one for the same key (ATLAS-170 pattern: KFC `PreferenceCenter` wired in `MoreStackNavigator` while `ProfileStackNavigator` still used core `Preferences` for `nativeRoute.PREFERENCES`). See "Complete Wiring" in Step 5.
