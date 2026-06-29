@@ -11,66 +11,60 @@ Determine the PR to review from user input. Always assume that when the user say
 
 | Input | How to resolve |
 |-------|---------------|
-| PR URL (e.g. `https://github.com/owner/repo/pull/123`) | Extract owner, repo, and PR number from URL |
-| PR number (e.g. `#123` or `123`) | Use with repo detected from `git remote -v` |
-| Branch name (e.g. "review changes from TBI-276 branch") | Treat as "review PR for this branch into the default base (main)"; use **`list_pull_requests`** (GitHub MCP) to find the open PR whose head branch matches this name |
-| No input | Use current branch (`git branch --show-current`), then **`list_pull_requests`** to find its open PR into the default base |
+| PR/MR URL (e.g. `https://github.com/owner/repo/pull/123`) | Extract owner, repo, and PR/MR number from URL |
+| PR/MR number (e.g. `#123` or `123`) | Use with repo detected from `git remote -v` |
+| Branch name (e.g. "review changes from TBI-276 branch") | Treat as "review PR/MR for this branch into the default base (main)"; resolve to the open PR/MR whose head/source branch matches this name (see below) |
+| No input | Use current branch (`git branch --show-current`), then resolve its open PR/MR into the default base (see below) |
 
-Parse the remote to extract `owner` and `repo`:
+### Detect the host and pick the CLI
+
+Inspect the remote to choose between `gh` (GitHub) and `glab` (GitLab):
 
 ```bash
 git remote get-url origin
-# https://github.com/ORG/REPO.git → owner=ORG, repo=REPO
-# git@github.com:ORG/REPO.git    → owner=ORG, repo=REPO
+# *github.com*  → use gh   (operates on a pull request, "PR")
+# *gitlab*      → use glab (operates on a merge request, "MR")
 ```
 
-### Resolve branch or current branch to a PR number
+GitHub "pull request (PR)" and GitLab "merge request (MR)" are the same concept — wherever
+this skill says PR, the GitLab path operates on the equivalent MR. Both `gh` and `glab`
+infer the owner/repo (and GitLab project) from the local remote, so most commands omit them;
+only raw `gh api` / `glab api` paths spell them out.
 
-Use the **GitHub MCP** tools, which are named `mcp__plugin_github_github__*` and are deferred — load a tool's schema with **ToolSearch** before calling it, e.g. `select:mcp__plugin_github_github__list_pull_requests`. (The `gh` CLI is not installed in this environment, so there is no shell fallback.)
+### Resolve branch or current branch to a PR/MR number
 
-When you have a branch name or the current branch but no PR number, call **`mcp__plugin_github_github__list_pull_requests`**:
+When you have a branch name or the current branch but no number:
 
+```bash
+# GitHub
+gh pr list --head <branch> --state open --json number,headRefName,title,url
+# or resolve a branch's PR directly:
+gh pr view <branch> --json number,headRefName,title,url
+
+# GitLab
+glab mr list --source-branch <branch>   # returns the MR IID
 ```
-mcp__plugin_github_github__list_pull_requests({
-  owner: "<owner>",
-  repo: "<repo>",
-  state: "open",
-  head: "<owner>:<branch>"
-})
-```
 
-`head` must be `user-or-org:branch-name` (GitHub API). For a branch on the same repo, use the repository `owner` before the colon.
+If multiple results match, prefer the one whose head/source ref matches the branch name, or
+ask the user.
 
-If multiple PRs match, prefer the one whose head ref matches the branch name, or ask the user.
-
-If `list_pull_requests` is insufficient, fall back to **`mcp__plugin_github_github__search_pull_requests`** with a scoped query (`owner`, `repo`, and GitHub PR search syntax).
+If that is insufficient, fall back to a search: `gh search prs --repo <owner>/<repo> <query>`
+(GitHub PR search syntax) or `glab mr list` with filters / `glab api`.
 
 ## Step 1: Fetch PR Context
 
-Use **`mcp__plugin_github_github__pull_request_read`** (load its schema via ToolSearch first: `select:mcp__plugin_github_github__pull_request_read`).
+Gather the PR/MR context with the CLI for the detected host. Run these in parallel:
 
-Run **`pull_request_read`** **in parallel** for the same `owner`, `repo`, and `pullNumber` (a **number**, not a string):
+| What | GitHub (`gh`) | GitLab (`glab`) |
+|------|---------------|-----------------|
+| **Metadata** — title, body, base/head branch, head sha (for `git` in Step 2) | `gh pr view <n> --json title,body,baseRefName,headRefName,headRefOid` | `glab mr view <iid> -F json` |
+| **Changed files** | `gh pr view <n> --json files` (or `gh pr diff <n> --name-only`) | `glab mr diff <iid>` (or `glab api projects/:id/merge_requests/<iid>/changes`) |
+| **Inline review threads** — prior line-level feedback | `gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate` | `glab api projects/:id/merge_requests/<iid>/notes` |
+| **Conversation comments** | `gh pr view <n> --json comments` | `glab mr view <iid>` |
+| **Optional — submitted reviews** (approve / request changes / summaries) | `gh pr view <n> --json reviews` | `glab mr view <iid>` (approvals / notes) |
 
-1. **PR metadata** — `method: "get"` — title, body/description, `base.ref`, `head.ref`, `head.sha` (for `git` in Step 2).
-2. **Changed files** — `method: "get_files"` — file paths; paginate with `page` / `perPage` (max 100) until all files are returned.
-3. **Inline review threads** — `method: "get_review_comments"` — prior line-level review feedback; paginate if needed.
-4. **PR conversation** — `method: "get_comments"` — issue-style comments on the PR.
-5. **Optional** — `method: "get_reviews"` — submitted reviews (approve / request changes / comment summaries).
-
-**Pagination:** For `get_files`, `get_comments`, and `get_review_comments`, advance `page` until a page returns no new items.
-
-**Optional:** `method: "get_diff"` can provide an API diff; prefer **Step 2** `git diff` as the primary source.
-
-Example (repeat per `method`):
-
-```
-mcp__plugin_github_github__pull_request_read({
-  method: "get",
-  owner: "<owner>",
-  repo: "<repo>",
-  pullNumber: <number>
-})
-```
+`<n>` is the PR number (GitHub) and `<iid>` the MR IID (GitLab). The `--paginate` flag on
+`gh api` walks all pages of inline comments automatically.
 
 From the combined responses, extract: title, description, base branch, head branch, changed file paths, and prior feedback so you do not duplicate comments.
 
@@ -113,7 +107,7 @@ Only read files that exist; skip gracefully if a CLAUDE.md is missing for a path
 
 **CI already runs lint, type-check, and tests on every PR** — don't re-run them as part of a review. `nx affected` recomputes the project graph against the base and is slow; running it locally rarely adds value over reading CI status.
 
-Instead, **read the PR's CI status** (via `mcp__plugin_github_github__pull_request_read` / check runs) and report any red checks as `[CRITICAL]`.
+Instead, **read the PR's CI status** (`gh pr checks <n>` on GitHub, or `glab ci status` / `glab mr view <iid>` on GitLab) and report any red checks as `[CRITICAL]`.
 
 Only run a check locally when **all** of these hold: the user explicitly asked for a thorough/local verification, CI status is unavailable, and you can scope it to the changed project(s):
 
@@ -287,9 +281,9 @@ Always include at least one `[PRAISE]` item when something is done well — the 
 
 ## Step 7: Display the Review
 
-**Always display the review in the conversation — never post it to GitHub.** Do not submit reviews, comments, approvals, or change requests to the PR. The `pull_request_review_write` tool and any other write-back to the PR are out of scope for this skill; the user takes the displayed review and acts on it themselves.
+**Always display the review in the conversation — never post it to the PR/MR.** Do not submit reviews, comments, approvals, or change requests: never run `gh pr comment` / `gh pr review` (or `glab mr note` / `glab mr approve`), or any other write-back. Those are out of scope for this skill; the user takes the displayed review and acts on it themselves.
 
-If the user explicitly asks you to post the review to GitHub, stop and confirm that intent before doing anything — it is not part of the normal flow.
+If the user explicitly asks you to post the review, stop and confirm that intent before doing anything — it is not part of the normal flow.
 
 ## Step 8: Surface Learnings
 
