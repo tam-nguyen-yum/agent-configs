@@ -85,8 +85,8 @@ To verify the fix worked:
 - Each workspace should be self-contained
 
 **All Nx-specific configurations belong in:**
-- `/Users/tdn5835/dv-commerce/.vscode/settings.json`
-- `/Users/tdn5835/dv-commerce/.cursor/rules/nx-rules.mdc`
+- `/Users/tdn5835/byte-helium/.vscode/settings.json`
+- `/Users/tdn5835/byte-helium/.cursor/rules/nx-rules.mdc`
 
 ## 📚 Related Files
 

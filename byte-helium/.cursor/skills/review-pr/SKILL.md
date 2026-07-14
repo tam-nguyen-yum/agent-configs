@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Review pull requests against dv-commerce project standards, architecture rules, and team conventions. Use when the user says "review PR", "review pull request", "check this PR", provides a PR URL or number, or asks for a code review of a branch (for example, "review changes from TBI-276 branch" should be interpreted as "review the PR that merges TBI-276 into main").
+description: Review pull requests against byte-helium project standards, architecture rules, and team conventions. Use when the user says "review PR", "review pull request", "check this PR", provides a PR URL or number, or asks for a code review of a branch (for example, "review changes from TBI-276 branch" should be interpreted as "review the PR that merges TBI-276 into main").
 ---
 
 # Review PR

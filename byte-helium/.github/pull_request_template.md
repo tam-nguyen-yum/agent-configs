@@ -38,7 +38,7 @@ This is what changes in this PR...
 
 # Checks
 
-- [ ] If this is a significant changed to a shared resource (changing a commonly used API, base functionality that multiple domains will leverage) or a change that impacts everyone (adding a new lib, reorganizing code, etc). Please get at least one approval from a member of each domain team before merging. Request approvals from the [@pizzahutuk/dv-commerce](https://github.com/orgs/pizzahutuk/teams/dv-commerce) group.
+- [ ] If this is a significant changed to a shared resource (changing a commonly used API, base functionality that multiple domains will leverage) or a change that impacts everyone (adding a new lib, reorganizing code, etc). Please get at least one approval from a member of each domain team before merging. Request approvals from the [@pizzahutuk/byte-helium](https://github.com/orgs/pizzahutuk/teams/byte-helium) group.
 - [ ] If shared functionality is touched make sure check Mobile checks. Make sure that the specific functionality touched on web doesn't break the mobile one. If it does -> there should be a followup mobile task created for that and mobile team should be notified
 
 ## Memory & Learning

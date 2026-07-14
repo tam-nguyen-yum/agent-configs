@@ -32,9 +32,9 @@ Skills teach the AI agent how to perform specialised tasks in this repo. The age
 | `react-native` | Working in `libs/native-*`, `apps/expo-app-*`, or user mentions React Native / Expo / mobile | Guides React Native (iOS/Android) screens, modules, DSC components, navigation, and tests |
 | `kfc-web` | Working on KFC-specific flows in `libs/brand-kfc/` or `apps/web-app-kfc-*` (occasion dialog, location flow, cart dialog) | Documents KFC brand-specific UI patterns, query-param-driven modals, and re-localization flow |
 | `product-debug` | User debugs modifier prices, weights, `isDefault` flags, or cart hydration issues | Maps the product/modifier domain (legacy vs new product page, brand customisers, selectors) and provides a regression matrix |
-| `review-pr` | User asks to review a PR or check their changes | Reviews against dv-commerce standards: web/native boundary, Redux patterns, DSC usage, SSR safety, tests, accessibility |
+| `review-pr` | User asks to review a PR or check their changes | Reviews against byte-helium standards: web/native boundary, Redux patterns, DSC usage, SSR safety, tests, accessibility |
 | `preview-app-tag` | User wants to create a preview app build tag for a market | Creates `app_v<semver>-preview-<market>` tags via a confirmation-gated workflow |
-| `expo-official` | User mentions Expo Router, EAS (build/submit/workflows), dev client, store submission, SDK upgrade, NativeWind, or generic Expo platform topics | Points to [expo/skills](https://github.com/expo/skills) and maps topics to upstream `SKILL.md` URLs; pair with `react-native` for dv-commerce-specific patterns |
+| `expo-official` | User mentions Expo Router, EAS (build/submit/workflows), dev client, store submission, SDK upgrade, NativeWind, or generic Expo platform topics | Points to [expo/skills](https://github.com/expo/skills) and maps topics to upstream `SKILL.md` URLs; pair with `react-native` for byte-helium-specific patterns |
 
 ## react-web vs react-native at a glance
 

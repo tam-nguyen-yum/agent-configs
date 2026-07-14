@@ -1,11 +1,11 @@
 ---
 name: expo-official
-description: Applies Expo team official agent guidance from expo/skills (Expo Router UI, EAS Build/Submit/Workflows, dev client, NativeWind/Tailwind, API routes, data fetching, SDK upgrades, App Store/Play, DOM components, SwiftUI/Jetpack Compose). Use when the user works on Expo or EAS, or mentions expo-router, eas.json, EAS Hosting, TestFlight, dev client, upgrading Expo SDK, or generic Expo docs—not only inside dv-commerce native apps.
+description: Applies Expo team official agent guidance from expo/skills (Expo Router UI, EAS Build/Submit/Workflows, dev client, NativeWind/Tailwind, API routes, data fetching, SDK upgrades, App Store/Play, DOM components, SwiftUI/Jetpack Compose). Use when the user works on Expo or EAS, or mentions expo-router, eas.json, EAS Hosting, TestFlight, dev client, upgrading Expo SDK, or generic Expo docs—not only inside byte-helium native apps.
 ---
 
 # Expo official skills (expo/skills)
 
-## Scope with dv-commerce
+## Scope with byte-helium
 
 - For **this monorepo’s** patterns (modules, DSC, Redux, market overrides), follow the project **`react-native`** skill first.
 - Use **this skill** when the task is **Expo/EAS platform** behavior: Router, EAS CLI, credentials, workflows, store submission, SDK upgrades, NativeWind setup, etc.

@@ -1,9 +1,9 @@
 ---
 name: react-web
-description: Guides development of React web screens, components, modules, routing, and tests in this dv-commerce monorepo. Use whenever working in libs/web-*, apps/web-app-*, or when the user mentions web app, web screen, web module, or browser-facing features.
+description: Guides development of React web screens, components, modules, routing, and tests in this byte-helium monorepo. Use whenever working in libs/web-*, apps/web-app-*, or when the user mentions web app, web screen, web module, or browser-facing features.
 ---
 
-# React Web — dv-commerce
+# React Web — byte-helium
 
 > This is plain **React** bundled with **Webpack** (Nx) — not React Native Web, and **not SSR/Next.js**. The web and mobile stacks are completely separate. The app is client-rendered: `initApp()` resolves and then `root.render()` mounts it.
 

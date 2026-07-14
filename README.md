@@ -25,10 +25,10 @@ agent-configs <project-name>
 Example:
 
 ```sh
-cd ~/projects/dv-commerce
-agent-configs dv-commerce
+cd ~/projects/byte-helium
+agent-configs byte-helium
 ```
 
-This symlinks all subdirectories from `~/.agent-configs/dv-commerce` (`.claude`, `.cursor`, `.github`, etc.) into the current directory.
+This symlinks all subdirectories from `~/.agent-configs/byte-helium` (`.claude`, `.cursor`, `.github`, etc.) into the current directory.
 
 To see available projects, run `agent-configs` with no arguments.

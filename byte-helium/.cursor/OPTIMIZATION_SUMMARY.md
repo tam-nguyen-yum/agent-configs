@@ -37,7 +37,7 @@ Added recommendations for:
 
 #### `.cursorrules` (NEW)
 Defines workspace-specific AI rules:
-- Multi-repo awareness (dv-commerce vs byte-helium)
+- Multi-repo awareness (byte-helium vs byte-helium)
 - Package ownership clarity (`@byte-storefronts/*` vs `@phdv/*`)
 - Testing requirements and patterns
 - Architecture constraints
@@ -140,5 +140,5 @@ Optional additional settings for:
 ---
 
 **Optimized by**: Cursor AI Assistant  
-**For**: DV-Commerce Monorepo  
+**For**: Byte-Helium Monorepo  
 **Stack**: Nx 20.8.1, TypeScript 5.8.2, React 18.3.1, React Native 0.76.9

@@ -1,11 +1,11 @@
 ---
 name: product-debug
-description: Debug product customization, modifier state, and cart edit hydration issues in dv-commerce. Use when users report modifier mismatches between cart and Product Page, bundle sub-product hydration issues, zero-weight modifier behavior, isDefault flag confusion, or added/removed summary inconsistencies.
+description: Debug product customization, modifier state, and cart edit hydration issues in byte-helium. Use when users report modifier mismatches between cart and Product Page, bundle sub-product hydration issues, zero-weight modifier behavior, isDefault flag confusion, or added/removed summary inconsistencies.
 ---
 
-# Product Debug — dv-commerce
+# Product Debug — byte-helium
 
-Use this skill for product-level debugging in dv-commerce — single products, bundle sub-products, and the full modifier lifecycle from cart payload through UI display.
+Use this skill for product-level debugging in byte-helium — single products, bundle sub-products, and the full modifier lifecycle from cart payload through UI display.
 
 ## Invoke This Skill When
 

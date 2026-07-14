@@ -1,9 +1,9 @@
 ---
 name: react-native
-description: Guides development of React Native / Expo screens, components, modules, navigation, and tests in this dv-commerce monorepo. Use whenever working in libs/native-*, apps/expo-app-*, or when the user mentions React Native, Expo, mobile screens, or native modules.
+description: Guides development of React Native / Expo screens, components, modules, navigation, and tests in this byte-helium monorepo. Use whenever working in libs/native-*, apps/expo-app-*, or when the user mentions React Native, Expo, mobile screens, or native modules.
 ---
 
-# React Native — dv-commerce
+# React Native — byte-helium
 
 ## Package scope (read first)
 
