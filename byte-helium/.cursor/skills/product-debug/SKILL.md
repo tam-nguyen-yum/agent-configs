@@ -74,20 +74,20 @@ User re-edits from cart:
 ## Core Files
 
 ### Single product flow
-- `libs/core/src/product/hooks/useNormalisedProduct.ts` — entry hook, accepts `lineItemId` or direct `cartSelectedSlots` overrides
-- `libs/core/src/product/utils/getNormalisedProductModifiers.ts` — normalises variant data + cart state into `selectedConfiguration`
-- `libs/core/src/product/utils/configurationBuilders.ts` — builds/updates slots on user interaction, summary formatting
-- `libs/core/src/menu/utils/modifiers/modifierState.ts` — derives checkbox/UI state from selected configuration
-- `libs/core/src/cart/mappers/mapCart.ts` — maps GraphQL cart response to Redux state
+- `byte-storefronts/core/src/product/hooks/useNormalisedProduct.ts` — entry hook, accepts `lineItemId` or direct `cartSelectedSlots` overrides
+- `byte-storefronts/core/src/product/utils/getNormalisedProductModifiers.ts` — normalises variant data + cart state into `selectedConfiguration`
+- `byte-storefronts/core/src/product/utils/configurationBuilders.ts` — builds/updates slots on user interaction, summary formatting
+- `byte-storefronts/core/src/menu/utils/modifiers/modifierState.ts` — derives checkbox/UI state from selected configuration
+- `byte-storefronts/core/src/cart/mappers/mapCart.ts` — maps GraphQL cart response to Redux state
 
 ### Bundle sub-product flow (additional files)
-- `libs/core/src/bundle/hooks/useBundleCustomiseProduct.ts` — orchestrates bundle product customisation, forwards `lineItemId`
-- `libs/core/src/bundle/hooks/useBundleProductConfiguration.ts` — resolves matching `configuredChoice` from parent bundle cart line item
-- `libs/core/src/menu/utils/compoundChoiceCode.ts` — rewrites choice codes for repeated choices (`selectedQuantity > 1`)
-- `libs/core/src/bundle/utils/mapLegacyData.ts` — `mapSelectedSlotsToModifiers` converts normalised slots to cart save format
+- `byte-storefronts/core/src/bundle/hooks/useBundleCustomiseProduct.ts` — orchestrates bundle product customisation, forwards `lineItemId`
+- `byte-storefronts/core/src/bundle/hooks/useBundleProductConfiguration.ts` — resolves matching `configuredChoice` from parent bundle cart line item
+- `byte-storefronts/core/src/menu/utils/compoundChoiceCode.ts` — rewrites choice codes for repeated choices (`selectedQuantity > 1`)
+- `byte-storefronts/core/src/bundle/utils/mapLegacyData.ts` — `mapSelectedSlotsToModifiers` converts normalised slots to cart save format
 
 ### UI layer
-- `libs/web-shared/src/components/ProductPage/MultiSelectCheckboxList.tsx`
+- `byte-storefronts/shared-web/src/components/ProductPage/MultiSelectCheckboxList.tsx`
 - Summary display reads from `configurationBuilders.ts` formatters
 
 ## Canonical Data Flows
@@ -160,7 +160,7 @@ BundleConfigurator passes bundleLineItemId (from normalisedParams.lineItemId)
 
 ## Regression Matrix (Mandatory)
 
-Test file: `libs/core/src/product/utils/__tests__/getNormalisedProductModifiers.spec.ts`
+Test file: `byte-storefronts/core/src/product/utils/__tests__/getNormalisedProductModifiers.spec.ts`
 
 Required scenarios:
 1. Default kept at base weight → `isDefault: true`
@@ -171,7 +171,7 @@ Required scenarios:
 6. Bundle sub-product hydration with mixed zero-weight + extra modifiers
 7. Multiple modifiers in same slot (grouped correctly)
 
-Also cover in: `libs/core/src/product/utils/__tests__/configurationBuilders.spec.ts`
+Also cover in: `byte-storefronts/core/src/product/utils/__tests__/configurationBuilders.spec.ts`
 - `buildMultiSelectSlot`: default removal creates zero-weight, non-default removal drops modifier
 - `formatSelectedSlotNames`: zero-weight excluded from extras, extra-weight included
 - `formatRemovedSlotNames`: zero-weight defaults appear as removed

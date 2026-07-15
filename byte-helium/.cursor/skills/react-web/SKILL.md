@@ -1,36 +1,37 @@
 ---
 name: react-web
-description: Guides development of React web screens, components, modules, routing, and tests in this byte-helium monorepo. Use whenever working in libs/web-*, apps/web-app-*, or when the user mentions web app, web screen, web module, or browser-facing features.
+description: Guides development of React web screens, components, modules, routing, and tests in this byte-helium monorepo. Use whenever working in byte-storefronts/core-web*, byte-storefronts/dsc-web, byte-storefronts/shared-web, apps/*-web-app*, or when the user mentions web app, web screen, web module, or browser-facing features.
 ---
 
 # React Web — byte-helium
 
-> This is plain **React** bundled with **Webpack** (Nx) — not React Native Web, and **not SSR/Next.js**. The web and mobile stacks are completely separate. The app is client-rendered: `initApp()` resolves and then `root.render()` mounts it.
+> This is plain **React** bundled with **Vite** (Nx) — not React Native Web, and **not SSR/Next.js**. The web and mobile stacks are completely separate. The app is client-rendered: `initApp()` resolves and then `root.render()` mounts it.
 
 ## Package scope (read first)
 
-Every internal import uses the **`@byte-storefronts/*`** scope — there is no `@phdv/*`. The aliases are defined in `tsconfig.base.json`. The ones you'll use most:
+Every internal import uses the **`@byte-storefronts/*`** scope — there is no `@phdv/*`. These are real pnpm workspace packages under `byte-storefronts/` (with granular `package.json` exports for subpaths), not tsconfig path aliases. The ones you'll use most:
 
-| Alias | Maps to | Holds |
+| Package | Lives in | Holds |
 |-------|---------|-------|
-| `@byte-storefronts/types` | `libs/types/src` | All prop & domain types |
-| `@byte-storefronts/core` (+ subpaths `/menu`, `/cart`, `/globalState`, …) | `libs/core/src` | Cross-platform state, selectors, domain hooks |
-| `@byte-storefronts/core-web` | `libs/web-core-framework/src` | Screens, routing, `initApp`, framework |
-| `@byte-storefronts/core-web-modules` | `libs/web-core-modules/src` | Default modules + `getModule()` |
-| `@byte-storefronts/dsc-web` (+ `/Icons`) | `libs/dsc-react-web/src` | DSC components, `useTheme`, icons |
+| `@byte-storefronts/types` | `byte-storefronts/types/src` | All prop & domain types |
+| `@byte-storefronts/core` (+ subpaths `/menu`, `/cart`, `/globalState`, …) | `byte-storefronts/core/src` | Cross-platform state, selectors, domain hooks |
+| `@byte-storefronts/core-web` | `byte-storefronts/core-web/src` | Screens, routing, `initApp`, framework |
+| `@byte-storefronts/core-web-modules` | `byte-storefronts/core-web-modules/src` | Default modules + `getModule()` |
+| `@byte-storefronts/dsc-web` (+ `/Icons`) | `byte-storefronts/dsc-web/src` | DSC components, `useTheme`, icons |
+| `@byte-storefronts/brand-kfc` / `brand-tb` | `byte-storefronts/brand-[kfc\|tb]/src` | Brand assets, theme, routes, module overrides (`webModules`) |
 
 ## Key paths
 
 | What | Where |
 |------|-------|
-| Core modules (default UI) | `libs/web-core-modules/src/modules/` |
-| Framework (screens, routing, hooks) | `libs/web-core-framework/src/` |
+| Core modules (default UI) | `byte-storefronts/core-web-modules/src/modules/` |
+| Framework (screens, routing, hooks) | `byte-storefronts/core-web/src/` |
 | Design system components | `@byte-storefronts/dsc-web` |
-| Market overrides | `apps/web-app-[market]/src/modules/` |
-| Module prop types | `libs/types/src/modules/` |
-| App bootstrap | `apps/web-app-[market]/src/main.tsx` |
+| Brand overrides | `byte-storefronts/brand-[kfc\|tb]/src/modules/` (exported as `webModules`) |
+| Module prop types | `byte-storefronts/types/src/modules/` |
+| App bootstrap | `apps/[brand-market]-web-app/src/main.tsx` |
 
-Markets present under `apps/`: `web-app-uk`, `web-app-ca`, `web-app-fr`, `web-app-jp`, `web-app-mx`, `web-app-pr`, `web-app-kw`, `web-app-kfc-au`, `web-app-tb-uk`, plus `web-app-template`.
+Apps present under `apps/`: `kfc-au-web-app` and `tb-uk-web-app` (each with a matching `*-e2e` project), plus `storybook-web`. App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/kfc-au-web-app`).
 
 ## Non-negotiables
 
@@ -44,20 +45,20 @@ Markets present under `apps/`: `web-app-uk`, `web-app-ca`, `web-app-fr`, `web-ap
 
 ## Creating a web module
 
-### 1. Define the type in `libs/types`
+### 1. Define the type in `byte-storefronts/types`
 
 ```typescript
-// libs/types/src/modules/MyModuleProps.ts
+// byte-storefronts/types/src/modules/MyModuleProps.ts
 export type MyModuleProps = {
   title: string
   onAction: () => void
 }
 ```
 
-### 2. Implement in `libs/web-core-modules`
+### 2. Implement in `byte-storefronts/core-web-modules`
 
 ```typescript
-// libs/web-core-modules/src/modules/MyModule.tsx
+// byte-storefronts/core-web-modules/src/modules/MyModule.tsx
 import { Button, Typography, Box, useTheme } from '@byte-storefronts/dsc-web'
 import type { MyModuleProps } from '@byte-storefronts/types'
 
@@ -80,19 +81,21 @@ export default MyModule
 
 ### 3. Register it in the module definition
 
-The module contract is the `WebAppModuleDependency` type in `libs/types/src/appDependencies.ts`. Add your default implementation to the core module set in `libs/web-core-modules/src` so `getModule()` can resolve it. Don't import that set directly — go through `getModule()`.
+The module contract is the `WebAppModuleDependency` type in `byte-storefronts/types/src/appDependencies.ts`. Add your default implementation to the core module set in `byte-storefronts/core-web-modules/src` so `getModule()` can resolve it. Don't import that set directly — go through `getModule()`.
 
-### 4. Market override (only when needed)
+### 4. Brand override (only when needed)
+
+Overrides live in the brand package and are exported through its `webModules` set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.ts`), which the app passes to `initApp` as `moduleMap`:
 
 ```typescript
-// apps/web-app-uk/src/modules/MyModule.tsx
+// byte-storefronts/brand-kfc/src/modules/MyModule/index.tsx
 import type { MyModuleProps } from '@byte-storefronts/types'
 
-const MyModuleUK: React.FC<MyModuleProps> = ({ title, onAction }) => (
-  // UK-specific implementation
+const MyModuleKFC: React.FC<MyModuleProps> = ({ title, onAction }) => (
+  // KFC-specific implementation
 )
 
-export default MyModuleUK
+export default MyModuleKFC
 ```
 
 ### 5. Consume in an orchestration component
@@ -112,7 +115,7 @@ const MyOrchestrator: React.FC = () => {
 ## Screens
 
 ```typescript
-// libs/web-core-framework/src/screens/MyScreen.tsx
+// byte-storefronts/core-web/src/screens/MyScreen.tsx
 import HeadMeta from '../shared/components/HeadMeta'
 import { ErrorBoundary } from 'react-error-boundary'
 import ErrorFallback from '../shared/components/ErrorFallback'
@@ -133,10 +136,10 @@ export const MyScreen = () => {
 
 There is **no generic `<Template>` component** — page chrome is applied by the layout wrappers (`LayoutWrapper` / `SimpleLayoutWrapper`), which the route layer wraps around screens for you (see Routing).
 
-Always pair a new screen with a **loading skeleton** in `libs/web-core-framework/src/page-skeletons/`:
+Always pair a new screen with a **loading skeleton** in `byte-storefronts/core-web/src/page-skeletons/`:
 
 ```typescript
-// libs/web-core-framework/src/page-skeletons/MyScreenSkeleton.tsx
+// byte-storefronts/core-web/src/page-skeletons/MyScreenSkeleton.tsx
 import { Skeleton } from '@byte-storefronts/dsc-web'
 import { DefaultSkeleton } from './DefaultSkeleton'
 
@@ -153,7 +156,7 @@ export const MyScreenSkeleton = () => (
 Routing is built from a **route map** assembled in each app's `main.tsx` (via `getBrandRouteMap`) from `screens` and `redirects`, then passed to `initApp` as `routeMap`. The framework renders routes through `CustomRoute`, which controls layout/header/footer per route:
 
 ```typescript
-// CustomRoute props (libs/web-core-framework/src/CustomRoute.tsx)
+// CustomRoute props (byte-storefronts/core-web/src/CustomRoute.tsx)
 <CustomRoute
   path="/menu"
   component={MenuPage}
@@ -164,7 +167,7 @@ Routing is built from a **route map** assembled in each app's `main.tsx` (via `g
 />
 ```
 
-For auth-gated pages use `LoggedOutRedirectRoute` (`libs/web-core-framework/src/shared/components/`). There is **no `MarketRoute` or `ProtectedRoute`** — market-specific routes are handled per app through the route map.
+For auth-gated pages use `LoggedOutRedirectRoute` (`byte-storefronts/core-web/src/shared/components/`). There is **no `MarketRoute` or `ProtectedRoute`** — market-specific routes are handled per app through the route map.
 
 Navigation inside components uses React Router:
 
@@ -190,18 +193,17 @@ const Layout = () => {
 `initApp` is imported from `@byte-storefronts/core-web`. The keys in `moduleMap` must match the **core module names** being overridden; `serviceMap` overrides services; `routeMap` supplies routes:
 
 ```typescript
-// apps/web-app-uk/src/main.tsx
+// apps/kfc-au-web-app/src/main.tsx
 import { initApp } from '@byte-storefronts/core-web'
+import { config as brandConfig, getBrandRouteMap, webModules } from '@byte-storefronts/brand-kfc'
 import { config as marketConfig, findEnvironmentConfig } from './config'
-import MyModule from './modules/MyModule'
-import * as webModules from '@byte-storefronts/core-web-modules'
 
 initApp({
   brandConfig,
   environmentConfig: findEnvironmentConfig(),
   marketConfig,
   serviceMap: { maps: createMapService },          // service overrides
-  moduleMap: { ...webModules, MyModule },           // keys MUST match core module names
+  moduleMap: webModules,                            // brand overrides; keys MUST match core module names
   routeMap: getBrandRouteMap(marketConfig.market.name, { screens, redirects }),
   blueprintMap,
   brandAssets: getAssets(environmentConfig),
@@ -235,11 +237,11 @@ const MyComponent = () => {
 }
 ```
 
-DSC wraps MUI and exposes far more than the basics above — `Dialog`, `Drawer`, `Card`, `Tabs`, `Menu`, `Accordion`, `Chip`, `Avatar`, `Radio`, `Checkbox`, `Switch`, `Carousel`, `Skeleton`, and brand-specific composites (`OccasionSelector`, `Footer`, …). Check `libs/dsc-react-web/src` for the full list before reaching for raw MUI. Always use `themeTokens.*` for spacing/colors/typography — never hardcode values or use plain CSS/CSS modules.
+DSC wraps MUI and exposes far more than the basics above — `Dialog`, `Drawer`, `Card`, `Tabs`, `Menu`, `Accordion`, `Chip`, `Avatar`, `Radio`, `Checkbox`, `Switch`, `Carousel`, `Skeleton`, and brand-specific composites (`OccasionSelector`, `Footer`, …). Check `byte-storefronts/dsc-web/src` for the full list before reaching for raw MUI. Always use `themeTokens.*` for spacing/colors/typography — never hardcode values or use plain CSS/CSS modules.
 
 ## Dialogs
 
-Dialogs are rendered centrally by the `Dialogs` component (`libs/web-core-framework/src/Dialogs.tsx`), mounted once near the app root. Each dialog is driven by its own feature state/hook (e.g. `useSwapCouponsDialog`, `useCouponWallet` in `@byte-storefronts/core/cart`) rather than a single generic `useDialog({ type })` API. To add a dialog: build it as a component, render it inside `Dialogs`, and control its visibility through its feature hook/selector. Don't manage ad-hoc local modal state for shared dialogs.
+Dialogs are rendered centrally by the `Dialogs` component (`byte-storefronts/core-web/src/Dialogs.tsx`), mounted once near the app root. Each dialog is driven by its own feature state/hook (e.g. `useSwapCouponsDialog`, `useCouponWallet` in `@byte-storefronts/core/cart`) rather than a single generic `useDialog({ type })` API. To add a dialog: build it as a component, render it inside `Dialogs`, and control its visibility through its feature hook/selector. Don't manage ad-hoc local modal state for shared dialogs.
 
 ## Performance
 
@@ -296,23 +298,22 @@ describe('useMyHook', () => {
 
 ### Run tests
 
-Scope tests to the library you changed:
+Scope tests to the package you changed — Nx project names are the package names:
 
 ```bash
-pnpm test:web-core        # web-core-framework
-pnpm test:web-modules     # web-core-modules
-pnpm test:web-dsc         # dsc-react-web
-pnpm test:web-shared      # web-shared
-pnpm test:web:uk          # web-app-uk
+pnpm nx run @byte-storefronts/core-web:test
+pnpm nx run @byte-storefronts/core-web-modules:test
+pnpm nx run @byte-storefronts/dsc-web:test
+pnpm nx run @byte-storefronts/shared-web:test
 
-# Target a single file via nx:
-pnpm nx test web-core-modules --testPathPattern="MyModule"
+# Target a single file (jest args go after --):
+pnpm nx run @byte-storefronts/core-web-modules:test -- --testPathPattern="MyModule"
 ```
 
 ### E2E (Cypress)
 
 ```bash
-pnpm e2e:web:uk
+pnpm nx run @byte-helium/kfc-au-web-app-e2e:e2e-ci
 ```
 
 Always add `data-testid` on interactive elements so Cypress can target them reliably. (E2E can be left to CI.)
@@ -342,4 +343,4 @@ Always add `data-testid` on interactive elements so Cypress can target them reli
 - Accessing `window` / `document` in shared utilities without a `typeof window !== 'undefined'` guard
 - Building a screen without a paired loading skeleton
 - Forgetting `data-testid` on interactive elements
-- Creating market-specific logic inside a core module
+- Creating brand- or market-specific logic inside a core module (it belongs in `brand-kfc`/`brand-tb` or the app)

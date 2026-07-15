@@ -1,9 +1,8 @@
 ---
-
-## name: pr-reviewer
+name: pr-reviewer
 description: High-signal reviewer for byte-helium PRs. Focuses on correctness, regressions, and architecture violations (not style nitpicks).
 model: fast
-type
+---
 
 # PR Reviewer (byte-helium)
 

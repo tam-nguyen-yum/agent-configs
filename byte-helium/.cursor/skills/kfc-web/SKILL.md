@@ -1,28 +1,28 @@
 ---
 name: kfc-web
-description: KFC brand-specific web & native UI patterns — location flow, OccasionFirstDialog, cart dialog, and re-localization. Use when working in libs/brand-kfc/, apps/web-app-kfc-au/, apps/expo-app-kfc-au/, or when the user mentions KFC location, occasion dialog, cart dialog, re-localize, or store selection.
+description: KFC brand-specific web & native UI patterns — location flow, OccasionFirstDialog, cart dialog, and re-localization. Use when working in byte-storefronts/brand-kfc/, apps/kfc-au-web-app/, apps/kfc-au-native-app/, or when the user mentions KFC location, occasion dialog, cart dialog, re-localize, or store selection.
 ---
 
 # KFC — Brand-Specific Patterns
 
-> KFC overrides several core modules with brand-specific implementations in `libs/brand-kfc/`.
+> KFC overrides several core modules with brand-specific implementations in `byte-storefronts/brand-kfc/`.
 
 ## Key paths
 
 | What | Where |
 |------|-------|
-| KFC brand library | `libs/brand-kfc/src/` |
-| Web module overrides | `libs/brand-kfc/src/modules/index.ts` |
-| Native module overrides | `libs/brand-kfc/src/modules/index.native.ts` |
-| OccasionFirstDialog (web) | `libs/brand-kfc/src/modules/OccasionFirstDialog/index.tsx` |
-| KFC Cart page screen (web) | `libs/brand-kfc/src/screens/Cart/index.tsx` |
-| Location chip (header button) | `libs/brand-kfc/src/modules/AppBarLocation/LocationButton.tsx` |
-| Native MenuListStackNavigator | `libs/brand-kfc/src/native/navigation/MenuListStackNavigator.tsx` |
-| Core location dialog wiring | `libs/web-core-framework/src/location/components/location-dialog/` |
+| KFC brand library | `byte-storefronts/brand-kfc/src/` |
+| Web module overrides | `byte-storefronts/brand-kfc/src/modules/index.ts` |
+| Native module overrides | `byte-storefronts/brand-kfc/src/modules/index.native.ts` |
+| OccasionFirstDialog (web) | `byte-storefronts/brand-kfc/src/modules/OccasionFirstDialog/index.tsx` |
+| KFC Cart page screen (web) | `byte-storefronts/brand-kfc/src/screens/Cart/index.tsx` |
+| Location chip (header button) | `byte-storefronts/brand-kfc/src/modules/AppBarLocation/LocationButton.tsx` |
+| Native MenuListStackNavigator | `byte-storefronts/brand-kfc/src/native/navigation/MenuListStackNavigator.tsx` |
+| Core location dialog wiring | `byte-storefronts/core-web/src/location/components/location-dialog/` |
 
 > Note: KFC no longer overrides the cart via a `CartDialog` module/`CartDialogModule` (those paths
 > are gone from source; only stale coverage artifacts remain). KFC now has a dedicated `/cart` **page
-> screen** at `libs/brand-kfc/src/screens/Cart/index.tsx` that renders core `InteractiveCart`.
+> screen** at `byte-storefronts/brand-kfc/src/screens/Cart/index.tsx` that renders core `InteractiveCart`.
 
 ## Dialog pattern (shared by location & cart)
 
@@ -42,7 +42,7 @@ KFC uses **URL-query-param-driven MUI Dialogs** for overlay screens. The pattern
 
 ## Cart (web)
 
-KFC renders the cart on a dedicated `/cart` **page screen** (`libs/brand-kfc/src/screens/Cart/index.tsx`),
+KFC renders the cart on a dedicated `/cart` **page screen** (`byte-storefronts/brand-kfc/src/screens/Cart/index.tsx`),
 not a query-param dialog. The screen:
 - Uses a side-by-side desktop layout (items left `xl={7}`, sticky order summary right `xl={4}`).
 - Renders core `InteractiveCart` (from `@byte-storefronts/core-web/cart/components`) for the line-item list,
@@ -68,7 +68,7 @@ On native, KFC's `MenuListStackNavigator` presents the cart as a **fullScreenMod
 - The attribute is `data-testid`, not `data-id`
 - Location: don't look for a route change to `/location` — KFC uses a query-param-driven dialog.
   Cart, however, **is** a real `/cart` page route (no longer a dialog).
-- The location dialog content components are in `libs/brand-kfc/src/location/` (not in `modules/`)
+- The location dialog content components are in `byte-storefronts/brand-kfc/src/location/` (not in `modules/`)
 - `DeliveryLocationFlow` is imported from `@byte-storefronts/core-web`, not from brand-kfc
 - Cart components (`InteractiveCart`, `PaymentSummaryButton`, etc.) are exported from `@byte-storefronts/core-web/cart`
 - `InteractiveCart` is shared by the `/cart` page, the side cart, and the generic `CartList` screen —

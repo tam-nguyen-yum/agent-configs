@@ -1,33 +1,34 @@
 ---
 name: react-native
-description: Guides development of React Native / Expo screens, components, modules, navigation, and tests in this byte-helium monorepo. Use whenever working in libs/native-*, apps/expo-app-*, or when the user mentions React Native, Expo, mobile screens, or native modules.
+description: Guides development of React Native / Expo screens, components, modules, navigation, and tests in this byte-helium monorepo. Use whenever working in byte-storefronts/core-native*, byte-storefronts/dsc-native, byte-storefronts/shared-native, apps/*-native-app*, or when the user mentions React Native, Expo, mobile screens, or native modules.
 ---
 
 # React Native — byte-helium
 
 ## Package scope (read first)
 
-Every internal import uses the **`@byte-storefronts/*`** scope — there is no `@phdv/*`. The aliases are defined in `tsconfig.base.json`. The ones you'll use most:
+Every internal import uses the **`@byte-storefronts/*`** scope — there is no `@phdv/*`. These are real pnpm workspace packages under `byte-storefronts/` (with granular `package.json` exports for subpaths), not tsconfig path aliases. The ones you'll use most:
 
-| Alias | Maps to | Holds |
+| Package | Lives in | Holds |
 |-------|---------|-------|
-| `@byte-storefronts/types` | `libs/types/src` | All prop & domain types |
-| `@byte-storefronts/core` (+ subpaths `/menu`, `/cart`, `/globalState`, …) | `libs/core/src` | Cross-platform state, selectors, domain hooks |
-| `@byte-storefronts/core-native` (+ `/shared`, `/modules`, `/routing`, `/blueprint`, `/globalState`, `/tracking`) | `libs/native-core-framework/src` | Screens, navigation, hooks, framework bootstrap |
-| `@byte-storefronts/core-native-modules` | `libs/native-core-modules/src` | Default modules + `getModule()` |
-| `@byte-storefronts/dsc-native` | `libs/dsc-react-native/src` | Design-system components, `useTheme`, theme types |
+| `@byte-storefronts/types` | `byte-storefronts/types/src` | All prop & domain types |
+| `@byte-storefronts/core` (+ subpaths `/menu`, `/cart`, `/globalState`, …) | `byte-storefronts/core/src` | Cross-platform state, selectors, domain hooks |
+| `@byte-storefronts/core-native` (+ `/shared`, `/modules`, `/routing`, `/blueprint`, `/globalState`, `/tracking`) | `byte-storefronts/core-native/src` | Screens, navigation, hooks, framework bootstrap |
+| `@byte-storefronts/core-native-modules` | `byte-storefronts/core-native-modules/src` | Default modules + `getModule()` |
+| `@byte-storefronts/dsc-native` | `byte-storefronts/dsc-native/src` | Design-system components, `useTheme`, theme types |
+| `@byte-storefronts/brand-kfc` / `brand-tb` | `byte-storefronts/brand-[kfc\|tb]/src` | Brand assets, theme, routes, module overrides (`nativeModules`) |
 
 ## Key paths
 
 | What | Where |
 |------|-------|
-| Core modules (default UI) | `libs/native-core-modules/src/modules/` |
-| Framework (screens, nav, hooks) | `libs/native-core-framework/src/` |
+| Core modules (default UI) | `byte-storefronts/core-native-modules/src/modules/` |
+| Framework (screens, nav, hooks) | `byte-storefronts/core-native/src/` |
 | Design system components | `@byte-storefronts/dsc-native` |
-| Market overrides | `apps/expo-app-[market]/src/modules/` |
-| Module prop types | `libs/types/src/modules/` |
+| Brand overrides | `byte-storefronts/brand-[kfc\|tb]/src/modules/` (native entry `index.native.ts`, exported as `nativeModules`) |
+| Module prop types | `byte-storefronts/types/src/modules/` |
 
-Markets present under `apps/`: `expo-app-uk`, `expo-app-ca`, `expo-app-fr`, `expo-app-jp`, `expo-app-mx`, `expo-app-pr`, `expo-app-kw`, `expo-app-kfc-au`, `expo-app-tb-uk`, plus `expo-app-template`.
+Apps present under `apps/`: `kfc-au-native-app` and `tb-uk-native-app` (each with a matching `*-e2e` project). App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/tb-uk-native-app`).
 
 ## Non-negotiables
 
@@ -39,20 +40,20 @@ Markets present under `apps/`: `expo-app-uk`, `expo-app-ca`, `expo-app-fr`, `exp
 
 ## Creating a native module
 
-### 1. Define the type in `libs/types`
+### 1. Define the type in `byte-storefronts/types`
 
 ```typescript
-// libs/types/src/modules/MyModuleProps.ts
+// byte-storefronts/types/src/modules/MyModuleProps.ts
 export type MyModuleProps = {
   title: string
   onPress: () => void
 }
 ```
 
-### 2. Implement in `libs/native-core-modules`
+### 2. Implement in `byte-storefronts/core-native-modules`
 
 ```typescript
-// libs/native-core-modules/src/modules/MyModule.tsx
+// byte-storefronts/core-native-modules/src/modules/MyModule.tsx
 import React from 'react'
 import { TouchableOpacity } from 'react-native'
 import { Surface, Text } from '@byte-storefronts/dsc-native'
@@ -77,21 +78,21 @@ export default MyModule
 
 ### 3. Register it in the module definition
 
-The default module set lives in `libs/native-core-modules/src/index.ts` (an internal `const`, not an exported `defaultModuleDefinition`). Add your module there so `getModule()` can resolve it. Don't import that const directly — go through `getModule()`.
+The default module set lives in `byte-storefronts/core-native-modules/src/index.ts` (an internal `const`, not an exported `defaultModuleDefinition`). Add your module there so `getModule()` can resolve it. Don't import that const directly — go through `getModule()`.
 
-### 4. Market override (only when needed)
+### 4. Brand override (only when needed)
 
-Place the override in the market app and register it with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
+Place the override in the brand package and export it via the brand's native module set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.native.ts`, exported as `nativeModules`), which the app registers with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
 
 ```typescript
-// apps/expo-app-uk/src/modules/MyModule.tsx
+// byte-storefronts/brand-kfc/src/modules/MyModule/index.native.tsx
 import type { MyModuleProps } from '@byte-storefronts/types'
 
-const MyModuleUK: React.FC<MyModuleProps> = ({ title, onPress }) => (
-  // UK-specific implementation
+const MyModuleKFC: React.FC<MyModuleProps> = ({ title, onPress }) => (
+  // KFC-specific implementation
 )
 
-export default MyModuleUK
+export default MyModuleKFC
 ```
 
 ### 5. Consume via orchestration
@@ -112,21 +113,20 @@ const MyOrchestrator: React.FC = () => {
 
 ### 6. Wire overrides at app startup
 
-Market apps register overrides in their `App.tsx` with `loadModules()` — it shallow-merges over the defaults:
+Apps register the brand's overrides in their `App.tsx` with `loadModules()` — it shallow-merges over the defaults:
 
 ```typescript
-// apps/expo-app-uk/src/App.tsx
+// apps/kfc-au-native-app/src/App.tsx
 import { loadModules } from '@byte-storefronts/core-native/modules'
-import * as nativeModules from './modules'
-import CallToRegister from './modules/CallToRegister'
+import { nativeModules } from '@byte-storefronts/brand-kfc'
 
-loadModules({ ...nativeModules, CallToRegister })
+loadModules({ ...nativeModules, Navigation })
 ```
 
 ## Screens
 
 ```typescript
-// libs/native-core-framework/src/screens/MyScreen.tsx
+// byte-storefronts/core-native/src/screens/MyScreen.tsx
 import Screen from '../shared/components/Screen'
 import { useAppNavigation } from '../shared/hooks/useAppNavigation'
 import { useTranslation } from 'react-i18next'
@@ -247,7 +247,7 @@ const MyScreen = () => {
 
 ## Bottom sheets
 
-`BottomDrawer` (in `libs/native-core-framework/src/shared/components/`) is a framework wrapper around the DSC `BottomSheet` — prefer it over wiring the raw DSC component yourself:
+`BottomDrawer` (in `byte-storefronts/core-native/src/shared/components/`) is a framework wrapper around the DSC `BottomSheet` — prefer it over wiring the raw DSC component yourself:
 
 ```typescript
 import BottomDrawer from '../shared/components/BottomDrawer'
@@ -316,19 +316,21 @@ describe('useMyFeature', () => {
 
 ### Run tests
 
-Scope tests to the library you changed — don't run the whole suite:
+Scope tests to the package you changed — Nx project names are the package names:
 
 ```bash
-pnpm test:native-core       # native-core-framework
-pnpm test:native-modules    # native-core-modules
-pnpm test:native-dsc        # dsc-react-native
-pnpm test:native-shared     # native-shared
-pnpm test:expo              # expo-app-uk (default app suite)
-pnpm test:expo:kw           # expo-app-kw
+pnpm nx run @byte-storefronts/core-native:test
+pnpm nx run @byte-storefronts/core-native-modules:test
+pnpm nx run @byte-storefronts/dsc-native:test
+pnpm nx run @byte-storefronts/shared-native:test
 
-# Target a single file via nx:
-pnpm nx test native-core-modules --testPathPattern="MyModule"
+# Target a single file (jest args go after --):
+pnpm nx run @byte-storefronts/core-native-modules:test -- --testPathPattern="MyModule"
 ```
+
+### E2E (Maestro)
+
+Maestro smoke flows live under `apps/tb-uk-native-app-e2e/maestro/`. After native app or shared native changes, run the relevant smoke flow locally when practical (E2E can otherwise be left to CI).
 
 ## Accessibility checklist
 
@@ -346,7 +348,7 @@ Every interactive element needs:
 
 ## Deep linking
 
-`useBranch` (`libs/native-core-framework/src/linking/hooks/useBranch.ts`) is the Branch.io integration handler — it manages link state, permissions, and routing:
+`useBranch` (`byte-storefronts/core-native/src/linking/hooks/useBranch.ts`) is the Branch.io integration handler — it manages link state, permissions, and routing:
 
 ```typescript
 import { useBranch } from '../linking/hooks/useBranch'

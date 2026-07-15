@@ -82,22 +82,16 @@ From the combined responses, extract: title, description, base branch, head bran
 
 ## Step 3: Load Domain Context
 
-For each affected library or app, read its domain-specific guidance:
+Byte-helium keeps its docs centralized (there are no per-library `CLAUDE.md`/`CLAUDE_MEMORY.md` files — package READMEs are thin stubs). Read:
 
-| Path prefix | Read |
+| What the MR touches | Read |
 |-------------|------|
-| `libs/core/` | `libs/core/CLAUDE.md`, `libs/core/CLAUDE_MEMORY.md` |
-| `libs/web-core-modules/` | `libs/web-core-modules/CLAUDE.md` |
-| `libs/web-core-framework/` | `libs/web-core-framework/CLAUDE.md` |
-| `libs/native-core-modules/` | `libs/native-core-modules/CLAUDE.md` |
-| `libs/native-core-framework/` | `libs/native-core-framework/CLAUDE.md` |
-| `libs/dsc-react-web/` | `libs/dsc-react-web/CLAUDE.md`, `libs/dsc-react-web/CLAUDE_MEMORY.md` |
-| `libs/dsc-react-native/` | `libs/dsc-react-native/CLAUDE.md`, `libs/dsc-react-native/CLAUDE_MEMORY.md` |
-| `libs/types/` | `libs/types/CLAUDE.md` |
-| `apps/web-app-*` | `libs/web-core-modules/CLAUDE.md` (for override rules) |
-| `apps/expo-app-*` | `libs/native-core-modules/CLAUDE.md` (for override rules) |
+| Anything | `AGENTS.md` (repo entrypoint: non-negotiables, architecture guardrails, commands, release rules) |
+| Process/testing/CI questions | `docs/making-a-change.md`, `docs/making-a-breaking-change.md`, `docs/testing.md`, `docs/cicd.md`, `docs/releases.md` |
+| `tools/sync-dv-commerce/` or dv-sync patches | `tools/sync-dv-commerce/SKILL.md` |
+| Repo workflow tooling | the relevant `tools/skills/*/SKILL.md` |
 
-Cross-cutting review patterns live in the per-library `CLAUDE_MEMORY.md` files (e.g. `libs/core/CLAUDE_MEMORY.md`, `libs/dsc-react-web/CLAUDE_MEMORY.md`) — there is no repo-root `CLAUDE_MEMORY.md`. Read the memory file for each affected library.
+Note: markdown inside dv-synced trees (`byte-storefronts/*/src/**`, `tools/ds-tokens/{data,src}/**`) is **dv-owned** — flag MRs that edit it in helium instead of upstream (or that should add a sync exclude in `tools/sync-dv-commerce/config.ts`).
 
 When the diff touches **web** code, also consult the `react-web` skill; when it touches **native** code, consult the `react-native` skill — these are the source of truth for platform conventions, package scopes, and APIs, and are kept in sync with the codebase. Prefer them over re-deriving rules here (see Step 5).
 
@@ -127,9 +121,9 @@ Work through each changed file and evaluate against these categories. Skip categ
 
 | Scope | Meaning |
 |-------|---------|
-| `@byte-storefronts/*` | This repo's **workspace libraries** (`core`, `core-web`, `core-web-modules`, `core-native`, `core-native-modules`, `dsc-web`, `dsc-native`, `types`, …) — 130+ tsconfig path aliases into `libs/`. Edited here. |
-| `@byte-helium/*` | **External** packages from the Helium GitLab registry (e.g. `@byte-helium/coding-standards`). Not editable in this repo. |
-| `@phdv/*` | Legacy scope, **only** `@phdv/e2e`, `@phdv/e2e/node`, `@phdv/design-tokens`. Everything else that looks like `@phdv/*` (e.g. `@phdv/types`, `@phdv/core`, `@phdv/dsc-react-web`) is **wrong** — flag it. |
+| `@byte-storefronts/*` | This repo's **published workspace packages** under `byte-storefronts/` (`core`, `core-web`, `core-web-modules`, `core-native`, `core-native-modules`, `dsc-web`, `dsc-native`, `brand-kfc`, `brand-tb`, `types`, …) — real pnpm workspace packages with granular `package.json` exports (no tsconfig path aliases). Edited here; versioned together via Changesets. |
+| `@byte-helium/*` | This repo's **apps and e2e projects** under `apps/` (e.g. `@byte-helium/kfc-au-web-app`, `@byte-helium/tb-uk-native-app`). Also edited here; native apps version independently. |
+| `@phdv/*` | Does **not** exist in this repo at all — any `@phdv/*` import is **wrong**; flag it (it's a dv-commerce leftover). |
 
 ### Complete Wiring (cross-file check — do not skip)
 
@@ -137,7 +131,7 @@ Most categories below are per-file; this one requires comparing the diff against
 
 1. **Find every registration site of the old implementation** — grep the repo (scoped to the affected brand/platform) for the superseded export name and its import path:
    ```bash
-   grep -rn "<OldName>\|<old-import-path>" libs/<affected-lib>/src apps/<affected-apps>
+   grep -rn "<OldName>\|<old-import-path>" byte-storefronts/<affected-package>/src apps/<affected-apps>
    ```
 2. **Check that all sites the PR should cover are updated.** If the new component is wired in one navigator/route/module but an old registration remains elsewhere for the same purpose, flag it as `[CRITICAL]` — the old UI will still render on that path.
 3. **Check registration-key consistency**: when the same key (e.g. `nativeRoute.PREFERENCES`, a module override key, a route path) is registered in multiple navigators or module maps, all registrations must point to the same component unless the divergence is clearly intentional.
@@ -147,11 +141,11 @@ This check applies with extra force when **reviewing your own PR before requesti
 
 ### Architecture Boundaries
 
-- No web ↔ native cross-imports (`@byte-storefronts/dsc-native` / `core-native` in web code, or `dsc-web` / `core-web` in native code)
-- No market-specific logic in core libraries (`libs/core/`, `libs/web-core-modules/`, etc.)
+- No web ↔ native cross-imports (`@byte-storefronts/dsc-native` / `core-native` in web code, or `dsc-web` / `core-web` in native code) — packages are tagged `platform:agnostic` / `platform:web` / `platform:native`; imports must respect the tags
+- No brand- or market-specific logic in core packages (`byte-storefronts/core/`, `byte-storefronts/core-web-modules/`, etc.) — it belongs in `brand-kfc`/`brand-tb` or the app
 - Modules must not interact with the Redux store directly
 - Reusable logic belongs in sagas, not hooks
-- `@byte-helium/*` packages are external (Helium registry) — changes belong in that repo, not here. `@byte-storefronts/*` are this repo's libs and are fair game.
+- Dependency versions come from the `catalog:` in `pnpm-workspace.yaml` — flag hard-coded versions in package manifests unless the repo already does so there
 
 ### Module System
 
@@ -189,7 +183,7 @@ This check applies with extra force when **reviewing your own PR before requesti
 - `type` over `interface`
 - No `any` — use `unknown` with type guards or proper generic constraints
 - Descriptive naming consistent with existing patterns
-- Absolute imports using `@byte-storefronts/*` workspace aliases, not deep relative paths (`../../../`)
+- Absolute imports using `@byte-storefronts/*` workspace packages (and their subpath exports), not deep relative paths (`../../../`)
 
 ### React Patterns
 
@@ -205,7 +199,13 @@ This check applies with extra force when **reviewing your own PR before requesti
 - Test quality: tests describe behavior, not implementation
 - Snapshot tests only for intentional UI output verification
 - Important branches and edge cases are exercised (judge coverage qualitatively from the diff — don't run a coverage report; it's slow and CI tracks the threshold)
-- E2E coverage for user-facing flows (E2E execution can be left to CI)
+- E2E coverage for user-facing flows (E2E execution can be left to CI; web uses Cypress, native uses Maestro)
+
+### Release hygiene (byte-helium-specific)
+
+- MR title follows Conventional Commit format (CI job `validate-mr-title` enforces it)
+- A changeset is present (`pnpm changeset`; infra/docs MRs with nothing to release need an empty one) — the release bump comes from Changesets, not the MR title
+- A `breaking:` MR includes a migration guide in the description (enforced by `validate-breaking-change-description`)
 
 ### Security
 
@@ -223,7 +223,7 @@ This check applies with extra force when **reviewing your own PR before requesti
 
 ### Browser-global safety (web)
 
-The web app is **client-rendered (Webpack/Nx), not SSR**, so this is a low-priority check — only flag it when code runs outside the browser. Shared utilities, config, and node-side build code that touch `window`, `document`, or `localStorage` should guard with `typeof window !== 'undefined'`. Inside a normal React component body it's a non-issue.
+The web app is **client-rendered (Vite/Nx), not SSR**, so this is a low-priority check — only flag it when code runs outside the browser. Shared utilities, config, and node-side build code that touch `window`, `document`, or `localStorage` should guard with `typeof window !== 'undefined'`. Inside a normal React component body it's a non-issue.
 
 > Import-scope and platform-boundary correctness are already covered by the **Package scopes** table and **Architecture Boundaries** above — apply those, don't re-check separately here.
 
@@ -289,15 +289,8 @@ If the user explicitly asks you to post the review, stop and confirm that intent
 
 If the review reveals a new pattern, anti-pattern, or architectural insight:
 
-1. Ask the user if it should be added to the affected library's `CLAUDE_MEMORY.md` (e.g. `libs/core/CLAUDE_MEMORY.md`, `libs/dsc-react-web/CLAUDE_MEMORY.md`) — or, if it's a platform convention, to the `react-web` / `react-native` skill instead
-2. Use the memory format already in that file:
-   ```markdown
-   ### <Title>
-   - **PR**: #<number> - <brief description>
-   - **What happened**: <the setup>
-   - **The revelation**: <what the review revealed>
-   - **The learning**: <crystallized wisdom>
-   ```
+1. Ask the user where it should be captured: a platform convention belongs in the `react-web` / `react-native` skill, a process/architecture rule in `AGENTS.md` or the matching `docs/*.md`, a repo-workflow gotcha in the relevant `tools/skills/*/SKILL.md`
+2. Remember byte-helium keeps every md file light — add only load-bearing content, and never edit markdown inside dv-synced trees (`byte-storefronts/*/src/**`); fix that upstream in dv-commerce instead
 
 ## Files to Skip
 
@@ -305,14 +298,14 @@ Do not review these — they are generated or vendored:
 
 - `**/node_modules/**`
 - `**/*.snap` (snapshot files — flag only if snapshots are suspiciously large)
-- `**/graphql.ts` under `libs/contentful/` or `libs/yum-connect/` (generated by codegen)
+- `**/graphql.ts` under `byte-storefronts/contentful/` or `byte-storefronts/yum-connect/` (generated by codegen)
 - `**/*.schema.json` (generated GraphQL schemas)
 - `**/*.graphql` (schema definition files — review only if the PR is specifically about schema changes)
-- Lock files (`yarn.lock`, `package-lock.json`)
+- Lock files (`pnpm-lock.yaml` — flag only unexpected bulk changes)
 
 ## Common Pitfalls to Watch For
 
-These are the most frequently caught issues in this codebase (drawn from the per-library `CLAUDE_MEMORY.md` files):
+These are the most frequently caught issues in this codebase:
 
 1. **Global state selectors** — selecting entire slices instead of specific fields
 2. **Conditional hooks** — `if (x) return; useEffect(...)` violates Rules of Hooks
