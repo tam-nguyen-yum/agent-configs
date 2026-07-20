@@ -18,6 +18,7 @@ If you want to be explicit, just mention the topic in your message:
 "Review this PR" / "Check my changes"              → review-pr skill kicks in
 "Debug the modifier price for this product"        → product-debug skill kicks in
 "How do I submit with EAS?" / Expo SDK upgrade     → expo-official skill kicks in
+"Create a changeset for my changes"                → changeset skill kicks in
 ```
 
 Skills teach the AI agent how to perform specialised tasks in this repo. The agent picks them up automatically based on context — you can also reference them explicitly in chat.
@@ -34,6 +35,7 @@ Skills teach the AI agent how to perform specialised tasks in this repo. The age
 | `product-debug` | User debugs modifier prices, weights, `isDefault` flags, or cart hydration issues | Maps the product/modifier domain (legacy vs new product page, brand customisers, selectors) and provides a regression matrix |
 | `review-pr` | User asks to review a PR or check their changes | Reviews against byte-helium standards: web/native boundary, Redux patterns, DSC usage, SSR safety, tests, accessibility |
 | `expo-official` | User mentions Expo Router, EAS (build/submit/workflows), dev client, store submission, SDK upgrade, NativeWind, or generic Expo platform topics | Points to [expo/skills](https://github.com/expo/skills) and maps topics to upstream `SKILL.md` URLs; pair with `react-native` for byte-helium-specific patterns |
+| `changeset` | User asks to create/add a changeset, or asks whether one is needed for a branch/MR | Thin pointer to the canonical repo skill (`tools/skills/changeset/SKILL.md`) plus a diff-to-changeset workflow for the current branch |
 
 ## react-web vs react-native at a glance
 

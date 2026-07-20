@@ -46,7 +46,7 @@ git diff origin/main...origin/<source_branch>
 - `AGENTS.md` — always. Non-negotiables, architecture guardrails, release rules.
 - Platform conventions are owned by the **`react-web`** / **`react-native`** skills — consult the one the diff touches; on conflict with this file, they win.
 - Process: `docs/making-a-change.md`, `docs/making-a-breaking-change.md`, `docs/testing.md`, `docs/cicd.md`, `docs/releases.md`.
-- dv-sync: `tools/sync-dv-commerce/SKILL.md`.
+- **dv-commerce is retired** — helium no longer syncs from upstream. Do **not** flag dv-sync or "dv-owned code" concerns: `byte-storefronts/*/src/**` is now plain helium-owned code, edit it directly. Any leftover sync tooling (`tools/sync-dv-commerce/`) or dv references in `AGENTS.md`/docs are cleanup debt, not a review blocker.
 
 ## 3. Review — "it works" is not enough
 
@@ -58,12 +58,11 @@ CI proves the code runs. Find what CI can't: code that works but violates archit
 - **Brand/market logic in core**: anything KFC- or TB-specific inside `byte-storefronts/core*` belongs in `brand-kfc`/`brand-tb` or the app.
 - **Module system**: props type in `@byte-storefronts/types` first; overrides live in the brand package with a key matching the core module export name; consumers resolve via `getModule()`, never import the module set directly; modules don't touch the Redux store directly.
 - **Logic altitude**: side effects and reusable business logic in sagas, not hooks/components. No tracking calls in React components/hooks (`no-tracking-in-react`) — route through sagas/services.
-- **dv-owned code**: direct edits inside dv-synced trees (`byte-storefronts/*/src/**`) are `[CRITICAL]` — the next sync overwrites them. Fix upstream in dv-commerce or patch/exclude via `tools/sync-dv-commerce/config.ts`.
 - **Dependencies**: versions come from the `catalog:` in `pnpm-workspace.yaml` — flag hard-coded versions in package manifests.
 
 ### Conventions — works, but not how this repo does it
 
-- Scopes: `@byte-storefronts/*` = workspace packages, `@byte-helium/*` = apps. Any `@phdv/*` import is a dv-commerce leftover — flag it. Workspace packages (and subpath exports) over `../../../` paths.
+- Scopes: `@byte-storefronts/*` = workspace packages, `@byte-helium/*` = apps. Any `@phdv/*` import is an invalid scope that won't resolve — flag it. Workspace packages (and subpath exports) over `../../../` paths.
 - DSC components (`@byte-storefronts/dsc-web` / `dsc-native`) over raw MUI/RN primitives (`button-import` rule).
 - `themeTokens.*` for spacing/colors/typography — no hardcoded values, no `px` suffix on web design tokens.
 - `useStoreSelector`/`useStoreDispatch` from core — never `react-redux` hooks (`no-react-redux-hooks`).
@@ -174,7 +173,7 @@ openLocationDialog(LocatorStep.OccasionEntry, 'home')
 
 **Display the review in the conversation — never post it.** No `glab mr note`, no approvals, no write-back. If the user explicitly asks to post, confirm intent first.
 
-New patterns worth keeping: platform conventions → `react-web`/`react-native` skill; process/architecture rules → `AGENTS.md` or `docs/`; never markdown inside dv-synced trees.
+New patterns worth keeping: platform conventions → `react-web`/`react-native` skill; process/architecture rules → `AGENTS.md` or `docs/`.
 
 ## Skip these files
 
