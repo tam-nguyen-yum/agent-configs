@@ -62,6 +62,7 @@ CI proves the code runs. Find what CI can't: code that works but violates archit
 
 ### Conventions — works, but not how this repo does it
 
+- **Duplicated derivations**: new code that re-derives near-verbatim what an existing builder/mapper/util in the same package already computes (compare against sibling modules, not just the diff). Ask for a shared helper both consume, with only the genuinely case-specific fields left at the call sites — otherwise the next spec change must land twice and the copies silently drift.
 - Scopes: `@byte-storefronts/*` = workspace packages, `@byte-helium/*` = apps. Any `@phdv/*` import is an invalid scope that won't resolve — flag it. Workspace packages (and subpath exports) over `../../../` paths.
 - DSC components (`@byte-storefronts/dsc-web` / `dsc-native`) over raw MUI/RN primitives (`button-import` rule).
 - `themeTokens.*` for spacing/colors/typography — no hardcoded values, no `px` suffix on web design tokens.
