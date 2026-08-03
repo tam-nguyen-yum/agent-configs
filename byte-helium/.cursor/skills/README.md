@@ -36,6 +36,7 @@ Skills teach the AI agent how to perform specialised tasks in this repo. The age
 | `review-pr` | User asks to review a PR or check their changes | Reviews against byte-helium standards: web/native boundary, Redux patterns, DSC usage, SSR safety, tests, accessibility |
 | `expo-official` | User mentions Expo Router, EAS (build/submit/workflows), dev client, store submission, SDK upgrade, NativeWind, or generic Expo platform topics | Points to [expo/skills](https://github.com/expo/skills) and maps topics to upstream `SKILL.md` URLs; pair with `react-native` for byte-helium-specific patterns |
 | `changeset` | User asks to create/add a changeset, or asks whether one is needed for a branch/MR | Thin pointer to the canonical repo skill (`tools/skills/changeset/SKILL.md`) plus a diff-to-changeset workflow for the current branch |
+| `blueprint` | Adding/moving/hiding UI on a screen that renders `<Blueprint>`, a block not showing up, registering a new block type, or user mentions blueprint / floating block / block registry / `*-page.ts` | Thin pointer to `tools/skills/blueprint/SKILL.md` — schema anatomy, `floatingBlocks`, the block registry, CMS vs local fallback, and the "edit the schema, not the screen" rule |
 
 ## react-web vs react-native at a glance
 
