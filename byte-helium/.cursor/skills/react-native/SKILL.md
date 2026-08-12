@@ -212,6 +212,77 @@ import { Image } from 'expo-image'
 <Image source={{ uri }} style={styles.img} contentFit="cover" transition={200} placeholder={blurhash} />
 ```
 
+## Lottie animations
+
+`lottie-react-native` is a `catalog:` dependency of `brand-kfc`, `brand-tb`,
+`dsc-native`, `core-native` and both native apps. Compositions are plain JSON
+`require`d as `AnimationObject` — either registered in the brand asset registry
+(`brand-*/src/assets.native.ts` + `types/src/brand-assets/image.ts`) when shared,
+or imported locally beside the component when it owns them.
+
+```typescript
+/* eslint-disable global-require, @typescript-eslint/no-require-imports */
+import LottieView from 'lottie-react-native'
+import type { AnimationObject } from 'lottie-react-native'
+
+const animation = require('../../assets/images/thing.json') as AnimationObject
+```
+
+### `renderMode` is a correctness setting, not a performance dial
+
+`renderMode` maps straight to a lottie-ios engine
+(`lottie-react-native/ios/LottieReactNative/ContainerView.swift`):
+
+| Prop | iOS engine | Use when |
+|---|---|---|
+| `"SOFTWARE"` | `.mainThread` | **Any composition containing text layers** — CPU-rendered, renders everything |
+| `"HARDWARE"` | `.coreAnimation` | Shapes/paths only, and you have verified it on device |
+| omitted | `.automatic` | Detects incompatibility and falls back to main thread |
+
+**`"HARDWARE"` puts lottie-ios's `CompatibilityTracker` into abort mode.** On any
+feature the Core Animation engine cannot render — text layers being the common
+one — it fires `LottieLogger.assert`, which is a hard `SIGTRAP` on debug builds.
+The app dies the moment the animation first displays. Unit tests pass, lint
+passes, typecheck passes.
+
+Before choosing `renderMode`, grep the composition for `"ty":5` (text layers). If
+present, it is `SOFTWARE`. Assert the value in a test so nobody "optimises" it
+back.
+
+### Never use `autoPlay`
+
+Play imperatively via ref. On Android `autoPlay` is started twice — by the JS
+wrapper on ref capture and by the native prop manager on every prop commit — and
+the second start cancels the first animator, killing playback and emitting a fake
+`isCancelled: false` completion. `brand-kfc/src/native/components/SplashScreen/`
+documents the full failure mode and the failsafe pattern.
+
+```typescript
+const ref = useRef<LottieView>(null)
+useEffect(() => {
+  if (active) ref.current?.play(startFrame, endFrame)
+  else ref.current?.reset()
+}, [active])
+```
+
+### Driving progress from a gesture
+
+Wrap with `Animated.createAnimatedComponent(LottieView)` and feed
+`animatedProps`. Verify on device — this is the least-proven part of the stack:
+
+```typescript
+const AnimatedLottieView = Animated.createAnimatedComponent(LottieView)
+const animatedProps = useAnimatedProps(() => ({ progress: someShared.value }))
+```
+
+### Reading a composition before writing code
+
+`fr` (frame rate), `ip`/`op` (in/out points), and per-layer `ip`/`op` tell you the
+authored timing; align JS timers to it rather than duplicating it. Layer `ty:5`
+is text, `ty:4` shape, `ty:1` solid, `ty:3` null/parent. Glyphs embedded in
+`chars` mean no font file is needed. A composition whose final frame is empty
+cannot be looped.
+
 ## Lists
 
 Use `FlashList` for long lists (not `FlatList`):
@@ -328,9 +399,25 @@ pnpm nx run @byte-storefronts/shared-native:test
 pnpm nx run @byte-storefronts/core-native-modules:test -- --testPathPattern="MyModule"
 ```
 
+### What jest cannot catch
+
+Green tests are not evidence a native change works. Jest renders against mocks,
+so a prop value the native library rejects at runtime looks identical to a
+correct one — the `renderMode` crash above passed tests, lint and typecheck, and
+killed the app on first display.
+
+Assume unverified whenever a change touches: a native module's props, animation
+engines, gesture recognizers, or platform-specific rendering. Either run it (see
+the `run-native-app` skill) or state plainly what remains unverified. Do not
+present "tests pass" as confidence the feature works.
+
 ### E2E (Maestro)
 
 Maestro smoke flows live under `apps/tb-uk-native-app-e2e/maestro/`. After native app or shared native changes, run the relevant smoke flow locally when practical (E2E can otherwise be left to CI).
+
+Maestro handles taps and scrolls. It **cannot** drag-and-hold, and its
+synthesised swipes may not activate custom RNGH `Pan` recognizers — check the
+`native-e2e-maestro` skill before planning around it.
 
 ## Accessibility checklist
 
@@ -375,3 +462,6 @@ const MyComponent = () => {
 - Ignoring Android back button / keyboard avoidance
 - Using `FlatList` for long lists (use `FlashList` instead)
 - Using the RN `Image` component (use `expo-image` instead)
+- Setting Lottie `renderMode="HARDWARE"` on a composition with text layers (hard crash on iOS debug)
+- Using Lottie `autoPlay` instead of an imperative `play()` (double-start on Android)
+- Treating passing jest tests as verification of a native-side change
