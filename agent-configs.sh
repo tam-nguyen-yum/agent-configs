@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Usage: agent-configs [-f] <project-name>
-# Symlinks all subdirectories from ~/.agent-configs/<project-name> into the current directory.
+# Symlinks all subdirectories from <configs-root>/<project-name> into the current directory.
+# Configs root defaults to the directory containing this script; override with AGENT_CONFIGS_DIR.
 # Use -f / --force to replace existing files or symlinks.
 
 agent-configs() {
@@ -14,8 +15,20 @@ agent-configs() {
     esac
   done
 
-  local project="${args[1]}"
-  local configs_dir="$HOME/.agent-configs"
+  set -- "${args[@]}"
+  local project="$1"
+
+  local script_path
+  if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    script_path="${BASH_SOURCE[0]}"
+  elif [[ -n "${ZSH_VERSION:-}" ]]; then
+    script_path="${(%):-%x}"
+  else
+    script_path="$0"
+  fi
+  local resolved_script_dir
+  resolved_script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+  local configs_dir="${AGENT_CONFIGS_DIR:-$resolved_script_dir}"
   local source_dir="$configs_dir/$project"
 
   if [[ -z "$project" ]]; then
