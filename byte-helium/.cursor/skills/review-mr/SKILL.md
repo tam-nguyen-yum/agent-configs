@@ -55,6 +55,8 @@ CI proves the code runs. Find what CI can't: code that works but violates archit
 ### Architecture — works, but in the wrong place
 
 - **Platform boundaries**: packages are tagged `platform:agnostic|web|native`. No `dsc-native`/`core-native` imports in web code or `dsc-web`/`core-web` in native — even transitively through a helper.
+- **Editing core**: `byte-storefronts/core*` ships to every brand, so one brand's edit can break the others. A new feature for one brand goes in `brand-kfc`/`brand-tb` or the app — flag a core edit in a brand MR as `[CRITICAL]` and name the brand file it belongs in.
+- Only accept a core edit when the description says why the brand package can't hold it (a fix every brand needs, or a new extension point brands hook into) — then check the change is additive and the other brands keep their current behaviour.
 - **Brand/market logic in core**: anything KFC- or TB-specific inside `byte-storefronts/core*` belongs in `brand-kfc`/`brand-tb` or the app.
 - **Module system**: props type in `@byte-storefronts/types` first; overrides live in the brand package with a key matching the core module export name; consumers resolve via `getModule()`, never import the module set directly; modules don't touch the Redux store directly.
 - **Logic altitude**: side effects and reusable business logic in sagas, not hooks/components. No tracking calls in React components/hooks (`no-tracking-in-react`) — route through sagas/services.

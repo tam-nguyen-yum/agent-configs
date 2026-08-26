@@ -37,9 +37,13 @@ cd ~/projects/byte-helium
 agent-configs byte-helium
 ```
 
-This symlinks all subdirectories from `~/.agent-configs/byte-helium` (`.claude`, `.cursor`, `.github`, etc.) into the current directory.
+This symlinks everything inside `~/.agent-configs/byte-helium` (`.claude`, `.cursor`, `.github`) into the current directory. An entry that already exists is skipped — pass `-f` / `--force` to replace it:
 
-To see available projects, run `agent-configs` with no arguments.
+```sh
+agent-configs -f byte-helium
+```
+
+To see available projects, run `agent-configs` with no arguments. Today that is just `byte-helium`.
 
 ## Contributing
 

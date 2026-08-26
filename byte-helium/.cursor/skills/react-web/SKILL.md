@@ -33,8 +33,25 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 
 Apps present under `apps/`: `kfc-au-web-app` and `tb-uk-web-app` (each with a matching `*-e2e` project), plus `storybook-web`. App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/kfc-au-web-app`).
 
+## Where new code goes
+
+`core*` packages ship to every brand — a change there reaches KFC and TB at once. So a feature asked for by one brand starts in that brand's package, not in core.
+
+| Asked for by | Put it in |
+|---|---|
+| One brand (KFC only, TB only) | `byte-storefronts/brand-[kfc\|tb]/src/` |
+| One app / market | `apps/<brand>-<market>-web-app/src/` |
+| Every brand, same behaviour | `core-web*` / `core` — say so before you start |
+
+Editing `core-web*`, `core`, or `dsc-web` for a brand feature is a last resort. It is only right when the brand package genuinely cannot hold the change — a bug every brand hits, or the core module needs a new prop or extension point for the brand to hook into. When that happens:
+
+- Tell the user first, in one sentence, and say why the brand package can't hold it.
+- Keep the core change additive: a new optional prop or hook point, with every other brand rendering exactly what it renders today.
+- Repeat the reason in the MR description — reviewers flag a brand MR that touches core as `[CRITICAL]` (see the `review-mr` skill).
+
 ## Non-negotiables
 
+- **A brand feature goes in the brand package** — only touch `core*` when every brand needs the change (see "Where new code goes").
 - **Always use DSC components** (`@byte-storefronts/dsc-web`) — never raw HTML elements or bare MUI components. DSC is the MUI wrapper layer.
 - **Unit tests mandatory** for all logic; view-only components only need tests if they contain logic
 - Module types must live in `@byte-storefronts/types` before implementing the module
@@ -55,7 +72,9 @@ export type MyModuleProps = {
 }
 ```
 
-### 2. Implement in `byte-storefronts/core-web-modules`
+### 2. Implement the default in `byte-storefronts/core-web-modules`
+
+Only when every brand should get this UI. If one brand asked for it, skip to step 4 and build the component in the brand package instead — leave the core default alone.
 
 ```typescript
 // byte-storefronts/core-web-modules/src/modules/MyModule.tsx
@@ -83,9 +102,9 @@ export default MyModule
 
 The module contract is the `WebAppModuleDependency` type in `byte-storefronts/types/src/appDependencies.ts`. Add your default implementation to the core module set in `byte-storefronts/core-web-modules/src` so `getModule()` can resolve it. Don't import that set directly — go through `getModule()`.
 
-### 4. Brand override (only when needed)
+### 4. Brand implementation or override
 
-Overrides live in the brand package and are exported through its `webModules` set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.ts`), which the app passes to `initApp` as `moduleMap`:
+The brand's version lives in the brand package and is exported through its `webModules` set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.ts`), which the app passes to `initApp` as `moduleMap`:
 
 ```typescript
 // byte-storefronts/brand-kfc/src/modules/MyModule/index.tsx
@@ -298,22 +317,31 @@ describe('useMyHook', () => {
 
 ### Run tests
 
-Scope tests to the package you changed — Nx project names are the package names:
+Scope jest to the spec files you changed — never to a whole package:
 
 ```bash
-pnpm nx run @byte-storefronts/core-web:test
-pnpm nx run @byte-storefronts/core-web-modules:test
-pnpm nx run @byte-storefronts/dsc-web:test
-pnpm nx run @byte-storefronts/shared-web:test
+cd byte-storefronts/core-web && pnpm exec jest --coverage=false --maxWorkers=2 \
+  src/path/to/MyModule.spec.tsx
 
-# Target a single file (jest args go after --):
-pnpm nx run @byte-storefronts/core-web-modules:test -- --testPathPattern="MyModule"
+# Fuzzy match on the file path instead of naming it:
+cd byte-storefronts/core-web-modules && pnpm exec jest --coverage=false --maxWorkers=2 \
+  --testPathPattern="MyModule"
 ```
+
+Never run `pnpm --filter <pkg> test` or `turbo run test`. A bare package run
+loads every spec file in the package (core-web is 553, core is 1433) across 11
+default workers, and `turbo run test` parallelises that across packages — enough
+to take the machine down.
+
+`--testPathPattern` is safe because it filters at file-discovery time. `-t` /
+`--testNamePattern` is **not**: it filters tests *within* suites, so jest still
+loads and executes every spec file to enumerate test names. Always pass
+`--maxWorkers` explicitly — the repo configures none.
 
 ### E2E (Cypress)
 
 ```bash
-pnpm nx run @byte-helium/kfc-au-web-app-e2e:e2e-ci
+pnpm --filter @byte-helium/kfc-au-web-app-e2e e2e:ci
 ```
 
 Always add `data-testid` on interactive elements so Cypress can target them reliably. (E2E can be left to CI.)
@@ -344,3 +372,4 @@ Always add `data-testid` on interactive elements so Cypress can target them reli
 - Building a screen without a paired loading skeleton
 - Forgetting `data-testid` on interactive elements
 - Creating brand- or market-specific logic inside a core module (it belongs in `brand-kfc`/`brand-tb` or the app)
+- Building a one-brand feature inside `core-web*` instead of `brand-kfc`/`brand-tb`

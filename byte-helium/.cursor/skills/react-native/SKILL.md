@@ -30,8 +30,25 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 
 Apps present under `apps/`: `kfc-au-native-app` and `tb-uk-native-app` (each with a matching `*-e2e` project). App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/tb-uk-native-app`).
 
+## Where new code goes
+
+`core*` packages ship to every brand — a change there reaches KFC and TB at once. So a feature asked for by one brand starts in that brand's package, not in core.
+
+| Asked for by | Put it in |
+|---|---|
+| One brand (KFC only, TB only) | `byte-storefronts/brand-[kfc\|tb]/src/` |
+| One app / market | `apps/<brand>-<market>-native-app/src/` |
+| Every brand, same behaviour | `core-native*` / `core` — say so before you start |
+
+Editing `core-native*`, `core`, or `dsc-native` for a brand feature is a last resort. It is only right when the brand package genuinely cannot hold the change — a bug every brand hits, or the core module needs a new prop or extension point for the brand to hook into. When that happens:
+
+- Tell the user first, in one sentence, and say why the brand package can't hold it.
+- Keep the core change additive: a new optional prop or hook point, with every other brand rendering exactly what it renders today.
+- Repeat the reason in the MR description — reviewers flag a brand MR that touches core as `[CRITICAL]` (see the `review-mr` skill).
+
 ## Non-negotiables
 
+- **A brand feature goes in the brand package** — only touch `core*` when every brand needs the change (see "Where new code goes").
 - **Use DSC for UI components** (`@byte-storefronts/dsc-native`) — `Text`, `Button`, `Surface`, `Card`, `TextInput`, etc. must come from DSC, not raw RN. Layout/interaction primitives (`View`, `TouchableOpacity`, `ScrollView`, `StyleSheet`) are fine from `react-native` directly.
 - **Unit tests mandatory** for all logic; view-only components only need tests if they contain logic
 - Must work on both **iOS and Android**
@@ -50,7 +67,9 @@ export type MyModuleProps = {
 }
 ```
 
-### 2. Implement in `byte-storefronts/core-native-modules`
+### 2. Implement the default in `byte-storefronts/core-native-modules`
+
+Only when every brand should get this UI. If one brand asked for it, skip to step 4 and build the component in the brand package instead — leave the core default alone.
 
 ```typescript
 // byte-storefronts/core-native-modules/src/modules/MyModule.tsx
@@ -80,9 +99,9 @@ export default MyModule
 
 The default module set lives in `byte-storefronts/core-native-modules/src/index.ts` (an internal `const`, not an exported `defaultModuleDefinition`). Add your module there so `getModule()` can resolve it. Don't import that const directly — go through `getModule()`.
 
-### 4. Brand override (only when needed)
+### 4. Brand implementation or override
 
-Place the override in the brand package and export it via the brand's native module set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.native.ts`, exported as `nativeModules`), which the app registers with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
+Place the brand's version in the brand package and export it via the brand's native module set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.native.ts`, exported as `nativeModules`), which the app registers with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
 
 ```typescript
 // byte-storefronts/brand-kfc/src/modules/MyModule/index.native.tsx
@@ -387,17 +406,27 @@ describe('useMyFeature', () => {
 
 ### Run tests
 
-Scope tests to the package you changed — Nx project names are the package names:
+Scope jest to the spec files you changed — never to a whole package:
 
 ```bash
-pnpm nx run @byte-storefronts/core-native:test
-pnpm nx run @byte-storefronts/core-native-modules:test
-pnpm nx run @byte-storefronts/dsc-native:test
-pnpm nx run @byte-storefronts/shared-native:test
+cd byte-storefronts/core-native && pnpm exec jest --coverage=false --maxWorkers=2 \
+  src/path/to/MyModule.spec.tsx
 
-# Target a single file (jest args go after --):
-pnpm nx run @byte-storefronts/core-native-modules:test -- --testPathPattern="MyModule"
+# Fuzzy match on the file path instead of naming it:
+cd byte-storefronts/core-native-modules && pnpm exec jest --coverage=false --maxWorkers=2 \
+  --testPathPattern="MyModule"
 ```
+
+Never run `pnpm --filter <pkg> test` or `turbo run test`. A bare package run
+loads every spec file in the package (core-native is 463, brand-kfc is 641)
+across 11 default workers, and `turbo run test` parallelises that across
+packages — enough to take the machine down. Native packages are the worst case:
+every worker pulls in the full React Native dependency graph.
+
+`--testPathPattern` is safe because it filters at file-discovery time. `-t` /
+`--testNamePattern` is **not**: it filters tests *within* suites, so jest still
+loads and executes every spec file to enumerate test names. Always pass
+`--maxWorkers` explicitly — the repo configures none.
 
 ### What jest cannot catch
 
@@ -465,3 +494,4 @@ const MyComponent = () => {
 - Setting Lottie `renderMode="HARDWARE"` on a composition with text layers (hard crash on iOS debug)
 - Using Lottie `autoPlay` instead of an imperative `play()` (double-start on Android)
 - Treating passing jest tests as verification of a native-side change
+- Building a one-brand feature inside `core-native*` instead of `brand-kfc`/`brand-tb`
