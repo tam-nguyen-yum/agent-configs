@@ -31,6 +31,12 @@ glab mr diff <iid>                  # changed files
 glab api projects/:id/merge_requests/<iid>/notes   # prior feedback — don't duplicate it
 ```
 
+**Rename the chat immediately** after `glab mr view` returns (do not wait for the review). Call `rename_chat` with:
+
+`Review MR !<iid> - <title>`
+
+Use the GitLab IID and the MR title as-is. Truncate the whole string to 200 characters if needed. This is part of the skill, not an extra user request.
+
 Then the real diff (git is fine **after** glab auth and MR resolution succeed):
 
 ```bash
