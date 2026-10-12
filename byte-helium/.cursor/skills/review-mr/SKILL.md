@@ -45,7 +45,7 @@ git diff origin/main...origin/<source_branch>
 ```
 
 - **Read each changed file in full** — most "works but wrong" findings live in the surrounding code, not the diff hunk. Files >500 lines: Grep to the changed regions and read around them. Broad cross-file sweeps: delegate to the Explore agent.
-- **CI**: `glab ci status` (or the MR view); red checks are `[CRITICAL]`. Don't re-run lint/type/test locally — CI already does, and `nx affected` is slow.
+- **CI**: `glab ci status` (or the MR view); red checks are `[CRITICAL]`. Don't re-run lint/type/test locally — CI already does. The task runner is **Turborepo** (`pnpm turbo run` / `pnpm --filter`), not Nx.
 
 ## 2. Load project context
 
@@ -84,7 +84,7 @@ CI proves the code runs. Find what CI can't: code that works but violates archit
 - **Selectors**: select specific fields, never whole slices — a whole-slice selector re-renders on every slice write.
 - **Render allocation**: inline objects/functions/`sx` passed to memoized children defeat the memo; hoist static ones, `useCallback`/`useMemo` the rest.
 - **Loops**: stable unique `key`s (not array index when items reorder); no sorting/filtering/object-building inside JSX over large arrays — hoist to `useMemo`; no `.find()`/`.includes()` inside `.map()` over the same array (build a `Map`/`Set` once); no per-item async kicked off in a render loop.
-- **Native lists**: `FlashList` with a sensible `estimatedItemSize` — not `FlatList`, not `.map()` in a `ScrollView`.
+- **Native lists**: `FlashList` — not `FlatList`, not `.map()` in a `ScrollView`. Do not require `estimatedItemSize` (FlashList v2; see `CategoryList.tsx`).
 - **Sagas**: `takeLeading` vs `takeLatest` chosen deliberately; no redundant work per action. Heavy components lazy-loaded with `Suspense` + skeleton.
 
 ### Complete wiring — works on the demo path, broken elsewhere
@@ -107,7 +107,7 @@ grep -rn "<OldName>\|<old-import-path>" byte-storefronts/<affected-package>/src 
 
 ### Security & accessibility (quick pass)
 
-- No secrets/keys in the diff; client-exposed env vars use `NX_PUBLIC_`; inputs validated; auth checks where required.
+- No secrets/keys in the diff; new client-exposed env vars use `VITE_` (web) or `EXPO_PUBLIC_` (native). `NX_PUBLIC_ENV` / `NX_PUBLIC_MARKET` remain as leftover config keys — do not introduce new `NX_PUBLIC_*` vars. Inputs validated; auth checks where required.
 - `aria-label` on icon-only buttons; form fields with `id` + label; native interactive elements have `accessibilityRole`/`accessibilityLabel`; `onClick` on non-buttons is keyboard-accessible.
 
 ## 4. Format and deliver

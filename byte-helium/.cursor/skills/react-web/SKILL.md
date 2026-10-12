@@ -5,7 +5,7 @@ description: Guides development of React web screens, components, modules, routi
 
 # React Web — byte-helium
 
-> This is plain **React** bundled with **Vite** (Nx) — not React Native Web, and **not SSR/Next.js**. The web and mobile stacks are completely separate. The app is client-rendered: `initApp()` resolves and then `root.render()` mounts it.
+> This is plain **React** bundled with **Vite** (Turborepo + pnpm, not Nx) — not React Native Web, and **not SSR/Next.js**. The web and mobile stacks are completely separate. The app is client-rendered: `initApp()` resolves and then `root.render()` mounts it.
 
 ## Package scope (read first)
 
@@ -31,7 +31,7 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 | Module prop types | `byte-storefronts/types/src/modules/` |
 | App bootstrap | `apps/[brand-market]-web-app/src/main.tsx` |
 
-Apps present under `apps/`: `kfc-au-web-app` and `tb-uk-web-app` (each with a matching `*-e2e` project), plus `storybook-web`. App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/kfc-au-web-app`).
+Web apps under `apps/`: `kfc-au-web-app`, `kfc-ca-web-app`, `tb-au-web-app`, `tb-ca-web-app`, `tb-uk-web-app` (each with a matching `*-e2e` project), plus `storybook-web` and `tb-uk-create-preview-app`. App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/kfc-au-web-app`). Dev server: `pnpm --filter @byte-helium/<app> dev`.
 
 ## Where new code goes
 
@@ -196,14 +196,14 @@ const navigate = useNavigate()
 navigate('/menu')
 ```
 
-Use `useRouteInfo()` for route-aware logic. It returns `{ isOrderPage, isHomePage, isMenuPage }`:
+Use `useRouteInfo()` for route-aware logic. It returns `{ pathname, isOrderPage, isHomePage }` — `isOrderPage` is true when the path is the menu route. There is no `isMenuPage`:
 
 ```typescript
 import { useRouteInfo } from '../shared/hooks/useRouteInfo'
 
 const Layout = () => {
-  const { isMenuPage } = useRouteInfo()
-  return isMenuPage ? <MenuHeader /> : <FullHeader />
+  const { isOrderPage } = useRouteInfo()
+  return isOrderPage ? <MenuHeader /> : <FullHeader />
 }
 ```
 
@@ -328,15 +328,15 @@ cd byte-storefronts/core-web-modules && pnpm exec jest --coverage=false --maxWor
   --testPathPattern="MyModule"
 ```
 
-Never run `pnpm --filter <pkg> test` or `turbo run test`. A bare package run
-loads every spec file in the package (core-web is 553, core is 1433) across 11
-default workers, and `turbo run test` parallelises that across packages — enough
-to take the machine down.
+Never run `pnpm --filter <pkg> test` or `turbo run test` locally. A bare package
+run loads every spec in the package (core and core-web each have hundreds), and
+`turbo run test` parallelises that across packages — enough to take the machine
+down.
 
 `--testPathPattern` is safe because it filters at file-discovery time. `-t` /
 `--testNamePattern` is **not**: it filters tests *within* suites, so jest still
-loads and executes every spec file to enumerate test names. Always pass
-`--maxWorkers` explicitly — the repo configures none.
+loads every spec file to enumerate test names. Always pass `--maxWorkers`
+explicitly for scoped local runs (repo default is `JEST_MAX_WORKERS` or `50%`).
 
 ### E2E (Cypress)
 

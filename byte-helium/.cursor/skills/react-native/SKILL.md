@@ -17,6 +17,7 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 | `@byte-storefronts/core-native-modules` | `byte-storefronts/core-native-modules/src` | Default modules + `getModule()` |
 | `@byte-storefronts/dsc-native` | `byte-storefronts/dsc-native/src` | Design-system components, `useTheme`, theme types |
 | `@byte-storefronts/brand-kfc` / `brand-tb` | `byte-storefronts/brand-[kfc\|tb]/src` | Brand assets, theme, routes, module overrides (`nativeModules`) |
+| `@byte-storefronts/markets` | `byte-storefronts/markets-au` | Market services (e.g. `createAddressProviderService` from `/au`) |
 
 ## Key paths
 
@@ -28,7 +29,7 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 | Brand overrides | `byte-storefronts/brand-[kfc\|tb]/src/modules/` (native entry `index.native.ts`, exported as `nativeModules`) |
 | Module prop types | `byte-storefronts/types/src/modules/` |
 
-Apps present under `apps/`: `kfc-au-native-app` and `tb-uk-native-app` (each with a matching `*-e2e` project). App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/tb-uk-native-app`).
+Native apps under `apps/`: `kfc-au-native-app`, `kfc-ca-native-app`, `tb-au-native-app`, `tb-ca-native-app`, `tb-uk-native-app`. Matching `*-e2e` projects exist for all except **tb-ca**. App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/tb-uk-native-app`). Start Metro: `pnpm --filter @byte-helium/<app> start`.
 
 ## Where new code goes
 
@@ -132,15 +133,17 @@ const MyOrchestrator: React.FC = () => {
 
 ### 6. Wire overrides at app startup
 
-Apps register the brand's overrides in their `App.tsx` with `loadModules()` — it shallow-merges over the defaults:
+Apps register the brand's overrides in `loadDependencies.ts` (not `App.tsx` — that file only mounts the brand root). `loadModules()` shallow-merges over the defaults:
 
 ```typescript
-// apps/kfc-au-native-app/src/App.tsx
+// apps/kfc-au-native-app/src/loadDependencies.ts
 import { loadModules } from '@byte-storefronts/core-native/modules'
-import { nativeModules } from '@byte-storefronts/brand-kfc'
+import { nativeModules, Navigation } from '@byte-storefronts/brand-kfc/native'
 
 loadModules({ ...nativeModules, Navigation })
 ```
+
+`App.tsx` only mounts the brand app (`<KFCNativeApp />` / TB equivalent) with the store created in `loadDependencies.ts`. Same pattern in `kfc-ca-native-app`.
 
 ## Screens
 
@@ -167,9 +170,9 @@ Always use `useAppNavigation()` (typed) — not the raw `useNavigation()` hook. 
 ## Navigation
 
 ```typescript
-import { createStackNavigator } from '@react-navigation/stack'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
-const Stack = createStackNavigator<MyStackParamList>()
+const Stack = createNativeStackNavigator<MyStackParamList>()
 
 export const MyStackNavigator = () => {
   const screenOptions = useStandardScreenOptions()
@@ -233,8 +236,8 @@ import { Image } from 'expo-image'
 
 ## Lottie animations
 
-`lottie-react-native` is a `catalog:` dependency of `brand-kfc`, `brand-tb`,
-`dsc-native`, `core-native` and both native apps. Compositions are plain JSON
+`lottie-react-native` is a `catalog:` dependency of `brand-kfc`,
+`dsc-native`, `core-native` and the native apps (not `brand-tb`). Compositions are plain JSON
 `require`d as `AnimationObject` — either registered in the brand asset registry
 (`brand-*/src/assets.native.ts` + `types/src/brand-assets/image.ts`) when shared,
 or imported locally beside the component when it owns them.
@@ -312,7 +315,6 @@ import { FlashList } from '@shopify/flash-list'
 <FlashList
   data={items}
   renderItem={({ item }) => <ItemCard item={item} />}
-  estimatedItemSize={100}
   keyExtractor={item => item.id}
 />
 ```
@@ -417,16 +419,16 @@ cd byte-storefronts/core-native-modules && pnpm exec jest --coverage=false --max
   --testPathPattern="MyModule"
 ```
 
-Never run `pnpm --filter <pkg> test` or `turbo run test`. A bare package run
-loads every spec file in the package (core-native is 463, brand-kfc is 641)
-across 11 default workers, and `turbo run test` parallelises that across
-packages — enough to take the machine down. Native packages are the worst case:
-every worker pulls in the full React Native dependency graph.
+Never run `pnpm --filter <pkg> test` or `turbo run test` locally. A bare package
+run loads every spec in the package (core-native and brand-kfc each have
+hundreds), and `turbo run test` parallelises that across packages — enough to
+take the machine down. Native packages are the worst case: every worker pulls
+in the full React Native dependency graph.
 
 `--testPathPattern` is safe because it filters at file-discovery time. `-t` /
 `--testNamePattern` is **not**: it filters tests *within* suites, so jest still
-loads and executes every spec file to enumerate test names. Always pass
-`--maxWorkers` explicitly — the repo configures none.
+loads every spec file to enumerate test names. Always pass `--maxWorkers`
+explicitly for scoped local runs (repo default is `JEST_MAX_WORKERS` or `50%`).
 
 ### What jest cannot catch
 
@@ -442,7 +444,7 @@ present "tests pass" as confidence the feature works.
 
 ### E2E (Maestro)
 
-Maestro smoke flows live under `apps/tb-uk-native-app-e2e/maestro/`. After native app or shared native changes, run the relevant smoke flow locally when practical (E2E can otherwise be left to CI).
+Maestro smoke flows live under `apps/<app>-native-app-e2e/maestro/` (`kfc-au`, `kfc-ca`, `tb-au`, `tb-uk` — there is no `tb-ca-native-app-e2e`). After native app or shared native changes, run the relevant smoke flow locally when practical (E2E can otherwise be left to CI).
 
 Maestro handles taps and scrolls. It **cannot** drag-and-hold, and its
 synthesised swipes may not activate custom RNGH `Pan` recognizers — check the

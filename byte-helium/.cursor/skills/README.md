@@ -4,7 +4,7 @@
 
 ## What are skills?
 
-Skills are instruction files that give the AI agent repo-specific knowledge for particular tasks — things like "how modules are created in this codebase", "how to run Nx tasks", or "what DSC components to use". Without them the agent gives generic advice; with them it gives answers specific to this monorepo.
+Skills are instruction files that give the AI agent repo-specific knowledge for particular tasks — things like "how modules are created in this codebase", "how to run Turbo/pnpm tasks", or "what DSC components to use". Without them the agent gives generic advice; with them it gives answers specific to this monorepo.
 
 ## How to use them
 
@@ -24,7 +24,7 @@ If you want to be explicit, just mention the topic in your message:
 
 Skills teach the AI agent how to perform specialised tasks in this repo. The agent picks them up automatically based on context — you can also reference them explicitly in chat.
 
-> **Nx skills** (`nx-workspace`, `nx-run-tasks`, `nx-generate`, `nx-plugins`, `link-workspace-packages`, `lsp-setup`, `monitor-ci`) come from the [`nx-claude-plugins`](https://github.com/nrwl/nx-ai-agents-config) plugin enabled in `.claude/settings.json`, alongside the official Figma plugin. Don't duplicate them here. The Copilot copies live in `.github/skills/`.
+> The monorepo task runner is **Turborepo + pnpm** (`pnpm turbo run`, `pnpm --filter`). Do **not** run `nx` / `nx affected`. `.claude/settings.json` still enables `nx@nx-claude-plugins` as leftover — ignore those Nx skills for commands. The Copilot copies of them live in `.github/skills/`. Figma plugin stays.
 
 ## Available skills
 
@@ -32,12 +32,12 @@ Skills teach the AI agent how to perform specialised tasks in this repo. The age
 |---|---|---|
 | `react-web` | Working in `byte-storefronts/*-web*`, `apps/*-web-app*`, or user mentions web app / browser | Guides React web screens, modules, DSC components, routing, and tests |
 | `react-native` | Working in `byte-storefronts/*-native*`, `apps/*-native-app*`, or user mentions React Native / Expo / mobile | Guides React Native (iOS/Android) screens, modules, DSC components, navigation, and tests |
-| `kfc-web` | Working on KFC-specific flows in `byte-storefronts/brand-kfc/` or `apps/kfc-au-*` (occasion dialog, location flow, cart dialog) — web and native | Documents KFC brand UI patterns, query-param-driven modals, and the re-localization flow |
+| `kfc-web` | Working on KFC-specific flows in `byte-storefronts/brand-kfc/` or `apps/kfc-{au,ca}-*` (occasion dialog, location flow, cart page) — web and native | Documents KFC brand UI patterns, query-param-driven location modals, the `/cart` page, and the re-localization flow |
 | `product-debug` | User debugs modifier prices, weights, `isDefault` flags, or cart hydration issues | Maps the product/modifier domain (legacy vs new product page, brand customisers, selectors) and provides a regression matrix |
 | `review-mr` | User asks to review an MR/PR, pastes an MR URL or number, or says "review changes from \<branch\>" | Fetches the GitLab MR with `glab` and reviews what CI can't: architecture, brand-vs-core placement, performance, incomplete wiring, tests, changeset, accessibility |
 | `expo-official` | User mentions Expo Router, EAS (build/submit/workflows), dev client, store submission, SDK upgrade, NativeWind, or generic Expo platform topics | Points to [expo/skills](https://github.com/expo/skills) and maps topics to upstream `SKILL.md` URLs; pair with `react-native` for byte-helium-specific patterns |
 | `changeset` | User asks to create/add a changeset, or asks whether one is needed for a branch/MR | Thin pointer to the canonical repo skill (`tools/skills/changeset/SKILL.md`) plus a diff-to-changeset workflow for the current branch |
-| `blueprint` | Adding/moving/hiding UI on a screen that renders `<Blueprint>`, a block not showing up, registering a new block type, or user mentions blueprint / floating block / block registry / `*-page.ts` | Thin pointer to `tools/skills/blueprint/SKILL.md` — schema anatomy, `floatingBlocks`, the block registry, CMS vs local fallback, and the "edit the schema, not the screen" rule |
+| `blueprint` | Adding/moving/hiding UI on a screen that renders `<Blueprint>`, a block not showing up, registering a new block type, or user mentions blueprint / floating block / block registry / `*-page.ts` | Schema anatomy, `floatingBlocks`, the block registry, KFC vs TB file layout, CMS vs local fallback, and the "edit the schema, not the screen" rule |
 | `run-native-app` | User asks to run/start/screenshot a native app, or a change needs confirming on a real simulator rather than in jest | Build + launch loop, local `preview` bundle IDs, the stale-install trap, Metro cache resets, reading `.ips` crash traces, isolating a regression with `git stash` |
 | `native-e2e-maestro` | Writing or running Maestro flows, adding a smoke test, or considering Maestro to drive a gesture | Install, flow syntax, `maestro hierarchy`, screenshot-hash verification — and the hard limits (no drag-and-hold, long durations ignored, RNGH `Pan` often not activated) |
 | `confluence-docs` | User pastes a Confluence link or asks what a wiki page / spec says | Reads Confluence pages with `acli` — resolving the page ID, `--body-format` choices, walking a page tree, and turning the XHTML into plain text |
@@ -47,7 +47,7 @@ Skills teach the AI agent how to perform specialised tasks in this repo. The age
 
 | | `react-web` | `react-native` |
 |---|---|---|
-| **Apps** | `apps/kfc-au-web-app`, `apps/tb-uk-web-app` | `apps/kfc-au-native-app`, `apps/tb-uk-native-app` |
+| **Apps** | `apps/{kfc-au,kfc-ca,tb-au,tb-ca,tb-uk}-web-app` | `apps/{kfc-au,kfc-ca,tb-au,tb-ca,tb-uk}-native-app` |
 | **Core modules** | `byte-storefronts/core-web-modules` | `byte-storefronts/core-native-modules` |
 | **Framework** | `byte-storefronts/core-web` | `byte-storefronts/core-native` |
 | **Design system** | `@byte-storefronts/dsc-web` (MUI-based) | `@byte-storefronts/dsc-native` (RN Paper-based) |
