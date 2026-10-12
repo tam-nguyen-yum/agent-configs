@@ -43,7 +43,7 @@ This is intentional. Do NOT simplify to modifier-code-only matching.
 
 | Consumer | What it checks | Why |
 |----------|---------------|-----|
-| `buildMultiSelectSlot` (~line 236) | `current?.isDefault` | Only default modifiers get zero-weight entries on removal. Non-defaults are simply dropped. |
+| `buildMultiSelectSlot` (`} else if (current?.isDefault)` in `configurationBuilders.ts`) | `current?.isDefault` | Only default modifiers get zero-weight entries on removal. Non-defaults are simply dropped. |
 | `isExtraModifier` | `!isDefault \|\| (isDefault && hasExtraWeight)` | Filters "added" summary. Zero-weight is never an extra. |
 | `isDefaultModifier` | `modifier.isDefault ?? false` | Filters "removed" summary — only defaults that were removed. |
 | `formatModifierName` | `isDefault` + weight | Controls `(x2)` label — only non-default extras get quantity display. |
@@ -86,8 +86,12 @@ User re-edits from cart:
 - `byte-storefronts/core/src/menu/utils/compoundChoiceCode.ts` — rewrites choice codes for repeated choices (`selectedQuantity > 1`)
 - `byte-storefronts/core/src/bundle/utils/mapLegacyData.ts` — `mapSelectedSlotsToModifiers` converts normalised slots to cart save format
 
-### UI layer
-- `byte-storefronts/shared-web/src/components/ProductPage/MultiSelectCheckboxList.tsx`
+### UI layer & customisers
+- New Product Page (KFC and TB): `byte-storefronts/core-web/src/menu/components/ProductPage/`, `byte-storefronts/core-native/src/menu/components/ProductPage/`, plus shared pieces under `shared-web` / `shared-native` `src/components/ProductPage/`
+- Legacy Product Page (unused by helium brands; still in source): `byte-storefronts/core-web/src/menu/components/LegacyProductPage/`
+- Core customisers: `byte-storefronts/core/src/product/services/customisers/{BaseProductCustomiser,ProductCustomiser}.ts`
+- Brand customisers: `byte-storefronts/brand-kfc/src/services/customisers/BrandProductCustomiser.ts`, `byte-storefronts/brand-tb/src/shared/services/customisers/BrandProductCustomiser.ts`
+- Shared checkbox UI: `byte-storefronts/shared-web/src/components/ProductPage/MultiSelectCheckboxList.tsx`
 - Summary display reads from `configurationBuilders.ts` formatters
 
 ## Canonical Data Flows

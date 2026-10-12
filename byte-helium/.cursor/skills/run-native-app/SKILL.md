@@ -16,6 +16,7 @@ touches native rendering, run it.
 nvm use && pnpm install
 
 # Full native build + install + launch (10-25 min cold, ~2 min warm)
+# Swap the filter for kfc-ca / tb-au / tb-ca / tb-uk as needed
 pnpm --filter @byte-helium/kfc-au-native-app ios
 pnpm --filter @byte-helium/kfc-au-native-app android
 
@@ -27,20 +28,24 @@ cd apps/kfc-au-native-app && BUILD_TYPE=local pnpm exec expo start --dev-client
 pnpm --filter @byte-helium/kfc-au-native-app prebuild
 ```
 
-All three app scripts set `BUILD_TYPE=local`.
+All native app `ios` / `android` / `start` scripts set `BUILD_TYPE=local`.
 
 ## Bundle IDs — check before you trust a run
 
 `resolveNativeBundleIds` (`tools/app-config/src/native-app-config.ts`) maps
 `BUILD_TYPE=local` to the **`preview`** variant, so a local build installs as:
 
-| App | Local/dev-client bundle ID |
-|---|---|
-| `@byte-helium/kfc-au-native-app` | `com.bytestorefronts.kfc.au.preview` |
-| `@byte-helium/tb-uk-native-app` | `com.bytestorefronts.tb.uk.preview` |
+| App | Local (`BUILD_TYPE=local`) bundle ID | Prod iOS (frozen; never local) |
+|---|---|---|
+| `@byte-helium/kfc-au-native-app` | `com.bytestorefronts.kfc.au.preview` | `com.ncr.hsr.KFCXpress` |
+| `@byte-helium/kfc-ca-native-app` | `com.bytestorefronts.kfc.ca.preview` | `com.halogenmobile.KFC-Canada` |
+| `@byte-helium/tb-au-native-app` | `com.bytestorefronts.tb.au.preview` | `com.tacobell.australia` |
+| `@byte-helium/tb-ca-native-app` | `com.bytestorefronts.tb.canada.preview` (**not** `tb.ca`) | `com.tacobell.canada` |
+| `@byte-helium/tb-uk-native-app` | `com.bytestorefronts.tb.uk.preview` | `com.tacobelluk.app` |
 
-Prod identities (`com.ncr.hsr.KFCXpress`, `com.tacobelluk.app`) are frozen store
-identities and never appear in a local run.
+`BUILD_TYPE=dev` uses `.dev` instead of `.preview`. E2E package scripts default
+to **staging** IDs. Prod identities are frozen store IDs and never appear in a
+local run.
 
 **Simulators accumulate stale installs under old bundle IDs.** The namespace has
 changed over time, so an older build of the same app can sit alongside today's

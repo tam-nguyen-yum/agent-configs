@@ -6,8 +6,12 @@ description: Write and run Maestro flows against byte-helium native apps, and kn
 # Maestro — byte-helium
 
 Maestro is the repo's native E2E tool. Flows live under
-`apps/tb-uk-native-app-e2e/maestro/`; CI runs are currently disabled pending
-runner capacity, so treat local runs as the only signal.
+`apps/<app>-native-app-e2e/maestro/` for `kfc-au`, `kfc-ca`, `tb-au`, and
+`tb-uk`. There is no `tb-ca-native-app-e2e`. BrowserStack Maestro lanes exist
+under `tools/ci/` as an **opt-in** MR gate — local runs are still the default
+signal. Package scripts default to **staging** bundle IDs
+(`com.bytestorefronts.<brand>.<market>.staging`); a local `BUILD_TYPE=local`
+dev-client install is `.preview`.
 
 ## Read this before proposing Maestro for a gesture
 
@@ -46,8 +50,15 @@ to someone's machine.
 ## Running
 
 ```bash
-# Repo smoke flows (APP_BUNDLE_ID is set by the package script)
+# Repo smoke flows (APP_BUNDLE_ID is set by the package script — staging)
 pnpm --filter @byte-helium/tb-uk-native-app-e2e test:ios:smoke
+pnpm --filter @byte-helium/kfc-au-native-app-e2e test:ios:smoke
+pnpm --filter @byte-helium/kfc-ca-native-app-e2e test:ios:smoke
+pnpm --filter @byte-helium/tb-au-native-app-e2e test:ios:smoke
+
+# Against a local preview install, override the bundle ID:
+APP_BUNDLE_ID=com.bytestorefronts.kfc.au.preview \
+  pnpm --filter @byte-helium/kfc-au-native-app-e2e test:ios:smoke
 
 # An ad-hoc flow
 maestro test myflow.yaml
@@ -101,5 +112,5 @@ rendering is not implicated. Reason from the artifact instead of guessing.
 
 ## Writing repo flows
 
-Smoke flows belong in `apps/<app>-e2e/maestro/flows/smoke/`. Keep them tied to
+Smoke flows belong in `apps/<app>-native-app-e2e/maestro/flows/smoke/`. Keep them tied to
 stable `testID`s, not copy — copy is translated and changes with CMS content.
