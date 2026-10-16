@@ -18,7 +18,6 @@ If you want to be explicit, just mention the topic in your message:
 "Review MR !123" / "Review changes from TBI-276"    → review-mr skill kicks in
 "Debug the modifier price for this product"        → product-debug skill kicks in
 "How do I submit with EAS?" / Expo SDK upgrade     → expo-official skill kicks in
-"Create a changeset for my changes"                → changeset skill kicks in
 "Add tracking for the add-to-cart event"           → analytics-event skill kicks in
 ```
 
@@ -36,7 +35,6 @@ Skills teach the AI agent how to perform specialised tasks in this repo. The age
 | `product-debug` | User debugs modifier prices, weights, `isDefault` flags, or cart hydration issues | Maps the product/modifier domain (legacy vs new product page, brand customisers, selectors) and provides a regression matrix |
 | `review-mr` | User asks to review an MR/PR, pastes an MR URL or number, or says "review changes from \<branch\>" | Fetches the GitLab MR with `glab` and reports findings in chat (never posts): architecture, brand-vs-core, leftover wiring — see `review-mr/STANDARDS.md` |
 | `expo-official` | User mentions Expo Router, EAS (build/submit/workflows), dev client, store submission, SDK upgrade, NativeWind, or generic Expo platform topics | Points to [expo/skills](https://github.com/expo/skills) and maps topics to upstream `SKILL.md` URLs; pair with `react-native` for byte-helium-specific patterns |
-| `changeset` | User asks to create/add a changeset, or asks whether one is needed for a branch/MR | Thin pointer to the canonical repo skill (`tools/skills/changeset/SKILL.md`) plus a diff-to-changeset workflow for the current branch |
 | `blueprint` | Adding/moving/hiding UI on a screen that renders `<Blueprint>`, a block not showing up, registering a new block type, or user mentions blueprint / floating block / block registry / `*-page.ts` | Schema anatomy, `floatingBlocks`, the block registry, KFC vs TB file layout, CMS vs local fallback, and the "edit the schema, not the screen" rule |
 | `run-native-app` | User asks to run/start/screenshot a native app, or a change needs confirming on a real simulator rather than in jest | Build + launch loop, local `preview` bundle IDs, the stale-install trap, Metro cache resets, reading `.ips` crash traces, isolating a regression with `git stash` |
 | `native-e2e-maestro` | Writing or running Maestro flows, adding a smoke test, or considering Maestro to drive a gesture | Install, flow syntax, `maestro hierarchy`, screenshot-hash verification — and the hard limits (no drag-and-hold, long durations ignored, RNGH `Pan` often not activated) |

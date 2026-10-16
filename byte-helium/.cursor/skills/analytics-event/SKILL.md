@@ -87,7 +87,6 @@ types in `@byte-storefronts/types`, tests per file.
 ## Pre-push gate (mandatory)
 
 1. Tests for every new file; run the affected package tests.
-2. Changeset added (`pnpm changeset`).
-3. **Run the `review-mr` skill on the branch's MR (or local diff against `main`)
+2. **Run the `review-mr` skill on the branch's MR (or local diff against `main`)
    and fix everything at CRITICAL/SUGGESTION level.**
-4. Only push to origin after the review pass is clean and the user confirms.
+3. Only push to origin after the review pass is clean and the user confirms.

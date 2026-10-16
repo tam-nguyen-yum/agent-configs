@@ -8,7 +8,7 @@ On conflict with the **`react-web`** / **`react-native`** skills, those win for 
 
 ## Architecture — works, but in the wrong place
 
-- **Platform boundaries**: packages are tagged `platform:agnostic|web|native`. No `dsc-native`/`core-native` imports in web code or `dsc-web`/`core-web` in native — even transitively through a helper.
+- **Dependency direction**: every package is classified (tier + platform) in `eslint-local-rules/rules/dependency-direction/registry.js`, and the `dependency-direction` lint rule enforces it. No `dsc-native`/`core-native` imports in web code or `dsc-web`/`core-web` in native — even transitively through a helper — and `brand-kfc` / `brand-tb` never import each other. A new package missing from the registry fails lint; check its classification is right, not just present.
 - **Editing core**: `byte-storefronts/core*` ships to every brand. For each changed export or field, find who else reads it before grading:
 
   ```bash
@@ -40,7 +40,7 @@ On conflict with the **`react-web`** / **`react-native`** skills, those win for 
 - **Selectors**: select specific fields, never whole slices — a whole-slice selector re-renders on every slice write.
 - **Render allocation**: inline objects/functions/`sx` passed to memoized children defeat the memo; hoist static ones, `useCallback`/`useMemo` the rest.
 - **Loops**: stable unique `key`s (not array index when items reorder); no sorting/filtering/object-building inside JSX over large arrays — hoist to `useMemo`; no `.find()`/`.includes()` inside `.map()` over the same array (build a `Map`/`Set` once); no per-item async kicked off in a render loop.
-- **Native lists**: `FlashList` — not `FlatList`, not `.map()` in a `ScrollView`. Do not require `estimatedItemSize` (FlashList v2; see `CategoryList.tsx`).
+- **Native lists**: `FlashList` — not `FlatList`, not `.map()` in a `ScrollView`. Do not require `estimatedItemSize` (FlashList v2; see `core-native-modules/src/modules/MenuList/index.tsx`).
 - **Sagas**: `takeLeading` vs `takeLatest` chosen deliberately; no redundant work per action. Heavy components lazy-loaded with `Suspense` + skeleton.
 
 ## Complete wiring — works on the demo path, broken elsewhere
@@ -78,5 +78,5 @@ git log -L<start>,<end>:<path> origin/main --format='%h %ad %s' --date=short -s
 
 ## Security & accessibility (quick pass)
 
-- No secrets/keys in the diff; new client-exposed env vars use `VITE_` (web) or `EXPO_PUBLIC_` (native). `NX_PUBLIC_ENV` / `NX_PUBLIC_MARKET` remain as leftover config keys — do not introduce new `NX_PUBLIC_*` vars. Inputs validated; auth checks where required.
+- No secrets/keys in the diff. Web: `tools/app-config/src/vite.js` loads every env var unprefixed and defines it as `process.env.<KEY>`, so any `process.env.X` referenced from web code ships in the bundle — no prefix protects it; flag a secret read that way as `[CRITICAL]`. Native: only `EXPO_PUBLIC_*` reaches the JS bundle. `NX_PUBLIC_ENV` / `NX_PUBLIC_MARKET` remain as leftover config keys — do not introduce new `NX_PUBLIC_*` vars. Inputs validated; auth checks where required.
 - `aria-label` on icon-only buttons; form fields with `id` + label; native interactive elements have `accessibilityRole`/`accessibilityLabel`; `onClick` on non-buttons is keyboard-accessible.
