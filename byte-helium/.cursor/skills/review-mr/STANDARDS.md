@@ -20,13 +20,17 @@ On conflict with the **`react-web`** / **`react-native`** skills, those win for 
   - Additive (optional field, new export) with no reader outside the MR's brand → at most `[NITPICK]` asking the description to say so.
 
 - **Brand/market logic in core**: anything KFC- or TB-specific inside `byte-storefronts/core*` belongs in `brand-kfc`/`brand-tb` or the app.
+- **Brand extensions (slices, events, sagas)**: core's Redux surface (`AnyEvent`, root reducer) is closed — brands add at runtime via `store.slice.inject()` / `store.eventListener.inject()` (wrapped in `injectBrandListeners`), never override core slices or events (`docs/brand-extensions.md`). Brand events must use a namespace prefix (`<domain>/...`), type saga effects with `createTypedListenerEffects<BrandEvent>()`, and read injected state through `createInjectedSliceSelector`. Brands re-export core's structural `StoreDispatchHook` / `StoreSelectorHook` — never depend on `react-redux` directly (causes TS2742 in declarations).
 - **Module system**: props type in `@byte-storefronts/types` first; overrides live in the brand package with a key matching the core module export name; consumers resolve via `getModule()`, never import the module set directly; modules don't touch the Redux store directly.
 - **Logic altitude**: side effects and reusable business logic in sagas, not hooks/components. No tracking calls in React components/hooks (`no-tracking-in-react`) — route through sagas/services.
-- **Dependencies**: versions come from the `catalog:` in `pnpm-workspace.yaml` — flag hard-coded versions in package manifests.
+- **Dependencies & install-time patches**: versions come from the `catalog:` in `pnpm-workspace.yaml` — flag hard-coded versions in package manifests. Any install-time string patch (`patches/`, Podfile/Gradle hooks editing a pod or library file) must pin that dependency to the exact verified version, never a floating range.
+- **Package manifests (`sideEffects`)**: every `byte-storefronts/*` package must declare `sideEffects` (`false`, or the explicit CSS/polyfill paths that run on import) so Rollup drops unused barrel members.
 
 ## Conventions — works, but not how this repo does it
 
 - **Duplicated derivations**: new code that re-derives near-verbatim what an existing builder/mapper/util in the same package already computes (compare against sibling modules, not just the diff). Ask for a shared helper both consume, with only the genuinely case-specific fields left at the call sites — otherwise the next spec change must land twice and the copies silently drift.
+- **Comments & JSDoc**: rare and short — 1–2 lines explaining the non-obvious _why_ (including JSDoc on declarations). Flag comments that restate the code, change history, ticket narrative, or multi-paragraph rationale (belongs in the MR description).
+- **`.cjs` imports in specs**: specs importing a `.cjs` module need a sibling `.d.cts` declaration; never add TS7016 to a typecheck lane, and never silence lint with `require()` + `eslint-disable`.
 - Scopes: `@byte-storefronts/*` = workspace packages, `@byte-helium/*` = apps. Any `@phdv/*` import is an invalid scope that won't resolve — flag it. Workspace packages (and subpath exports) over `../../../` paths.
 - DSC components (`@byte-storefronts/dsc-web` / `dsc-native`) over raw MUI/RN primitives (`button-import` rule).
 - `themeTokens.*` for spacing/colors/typography — no hardcoded values, no `px` suffix on web design tokens.
@@ -41,7 +45,11 @@ On conflict with the **`react-web`** / **`react-native`** skills, those win for 
 - **Render allocation**: inline objects/functions/`sx` passed to memoized children defeat the memo; hoist static ones, `useCallback`/`useMemo` the rest.
 - **Loops**: stable unique `key`s (not array index when items reorder); no sorting/filtering/object-building inside JSX over large arrays — hoist to `useMemo`; no `.find()`/`.includes()` inside `.map()` over the same array (build a `Map`/`Set` once); no per-item async kicked off in a render loop.
 - **Native lists**: `FlashList` — not `FlatList`, not `.map()` in a `ScrollView`. Do not require `estimatedItemSize` (FlashList v2; see `core-native-modules/src/modules/MenuList/index.tsx`).
-- **Sagas**: `takeLeading` vs `takeLatest` chosen deliberately; no redundant work per action. Heavy components lazy-loaded with `Suspense` + skeleton.
+- **Sagas & lazy loading**: `takeLeading` vs `takeLatest` chosen deliberately; no redundant work per action. Heavy components lazy-loaded with `Suspense` + skeleton via `importWithRetries` (`wrap-dynamic-import`).
+- **Web bundle budgets & boot shell**:
+  - KFC boot-shell entries (`apps/kfc-*-web-app/src/main.tsx`) must only paint the route skeleton and `import()` `bootstrap.tsx` — import skeleton primitives from subpaths (`dsc-web/Box`, `dsc-web/Skeleton`), never package roots/barrels.
+  - `VENDOR_CHUNKS` (`tools/app-config/src/vite.js`) must not add manual chunks for vendors the shell only partly needs (MUI) or loads after boot (Datadog).
+  - Raising a ratchet in `WEB_BUNDLE_BUDGETS` (`tools/ci/lib/bundle-budget.ts`) without moving new code off the initial graph and explaining why in the MR description is `[CRITICAL]`.
 
 ## Complete wiring — works on the demo path, broken elsewhere
 
@@ -72,7 +80,10 @@ git log -L<start>,<end>:<path> origin/main --format='%h %ad %s' --date=short -s
 - **No changeset required**: the changesets flow is superseded (see `docs/releases.md`), so never flag a missing or deleted `.changeset/*.md`.
 - MR title in conventional-commit format; a `breaking:` MR includes a migration guide in its description.
 - Title ticket, branch ticket and `Closes` line agree, or the description says how the tickets relate (`docs/making-a-change.md`).
-- The description names every behaviour change QA must retest. A bare `Closes ATLAS-123` on an MR that changes user-facing behaviour is a `[SUGGESTION]`; list the screens/brands it should name.
+- The description names every behaviour change QA must retest: dependency upgrades/downgrades, removed native modules, and anything that alters the native fingerprint (forcing a new store binary instead of an OTA — see `docs/releases.md`). A bare `Closes ATLAS-123` on an MR that changes user-facing or release behaviour is a `[SUGGESTION]`; list the screens/brands/release impact it should name.
+- Native `X.Y.0` version line in `apps/<app>/package.json`: bump only when the change needs a new store-visible line (`docs/releases.md`). Changing shared native app config (`tools/app-config/src/native-app-config.ts`) for one brand's need requires the MR description to say why.
+- Adding a CI job, package, service or abstraction: the description must state what it replaces/retires, or that it replaces nothing (`docs/making-a-change.md`). A new package or root entry must be placed in `.paths-*` in `.gitlab-ci/rules.yml` or `IGNORED_TOP_LEVEL` in `tools/ci/release/mr-scope-paths.ts`.
+- CI YAML (`.gitlab-ci/`): jobs must pick an `extends` preset in `.gitlab-ci/rules.yml` (never write inline `rules:`), must not use recursive wildcards (`**`) in `artifacts:paths`, and any job adding `allow_failure` or a non-blocking manual button must name the person/channel who checks it and how often (`docs/cicd.md`).
 - The `mr-size-report` bot flags MRs over its limits; over-limit with no reason in the description → `[SUGGESTION]` to split (name the seam, e.g. core change vs brand UI).
 - Native code touched (`apps/*-native-app*`, `*-native`, `brand-*/src/native`, `blueprint/native`): say in the summary whether `native-e2e-<brand>` ran for every brand reached. A green MR with skipped Native is not proof Native passed — summary bullet, not a finding.
 

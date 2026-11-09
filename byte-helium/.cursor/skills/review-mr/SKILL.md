@@ -66,7 +66,8 @@ git diff <old_sha> origin/<source_branch> -- $( { git diff --name-only origin/ma
 - `AGENTS.md` — always.
 - [STANDARDS.md](STANDARDS.md) — architecture, conventions, performance, leftover wiring, recent history, tests/MR hygiene, secrets/a11y.
 - Platform conventions: the **`react-web`** / **`react-native`** skill for the side the diff touches, when installed.
-- Process docs as needed: `docs/making-a-change.md`, `docs/making-a-breaking-change.md`, `docs/testing.md`, `docs/cicd.md`, `docs/releases.md`.
+- Native release/fingerprint changes (native deps, config plugins, `eas.json`, `app.config.ts`, `.fingerprintignore`, `tools/app-config/src`, `X.Y.0` version line): load `.agents/skills/native-release/SKILL.md` and `docs/releases.md`.
+- Process docs as needed: `docs/making-a-change.md`, `docs/making-a-breaking-change.md`, `docs/brand-extensions.md`, `docs/testing.md`, `docs/cicd.md`, `docs/releases.md`.
 
 ## 3. Review
 
@@ -78,7 +79,7 @@ Cap: **at most 3 `[CRITICAL]` and 5 `[SUGGESTION]`**. Extra issues become one-li
 
 - 1–2 sentence opening: what the MR does and merge readiness. Mention CI only if red or running.
 - No empty sections. Order: critical → suggestion → nitpick → praise (cap praise at one or two).
-- Say what breaks for the user or analytics — not only what the code does differently.
+- CRITICAL / SUGGESTION: scenario + comparison table (not a prose paragraph). See Finding shape.
 - Re-reviews: open with what changed since last look (by commit), say which earlier findings are resolved, then only still-open and new findings (fresh paths/lines). See [examples.md](examples.md).
 - Clean review: **No merge blockers.** plus at most one praise line. Skip the findings template.
 
@@ -91,10 +92,18 @@ Cap: **at most 3 `[CRITICAL]` and 5 `[SUGGESTION]`**. Extra issues become one-li
 
 ### Finding shape (CRITICAL / SUGGESTION)
 
+Do not put the explanation in one long sentence after the title. Lead with the case, then a table a human can scan.
+
 Required:
 
-- **Title** — `[SEVERITY] <short title>` — why it matters (one sentence).
+- **Title** — `[SEVERITY] <short title>` — one short clause, not the whole argument.
+- **Scenario** — one line: screen + the case that breaks. Concrete names if they help (`Chips`, `/menu`).
+- **Table** — comparison, not a restatement of the title:
+  - User/analytics behaviour: `| | Before | After this MR |` — one row per thing that changes (Name, Image, Analytics, Visibility, …).
+  - Not a before/after (missing QA list, architecture, tests): `| | Now | Need |`.
 - **Where** — file/lines **changed by this MR**, 3–8 line snippet in ` ```start:end:path ` format. Verify against `git diff origin/main...origin/<branch> -- <path>` (or `...HEAD` when local-only). Line numbers alone are not enough. Findings about the MR title or description quote the field instead of a code snippet.
+
+After the table, at most 1–2 short lines (scope, a test that locks it). Do not rewrite the table as prose.
 
 Optional:
 
@@ -113,7 +122,15 @@ Nitpicks and praise: one line each, with a path.
 
 ### Findings
 
-**[CRITICAL] <short title>** — <why it matters>.
+**[CRITICAL] <short title>**
+
+<Screen + case.>
+
+| | Before | After this MR |
+| --- | --- | --- |
+| <What> | <old> | <new> |
+
+<Optional: 1–2 short lines — brands/platforms, test that locks it.>
 
 - **Where:**
 
@@ -123,7 +140,15 @@ Nitpicks and praise: one line each, with a path.
   }
 ```
 
-**[SUGGESTION] <short title>** — <why it helps>. (Where required; Fix / See also optional)
+**[SUGGESTION] <short title>**
+
+<Screen + case, or who is blocked.>
+
+| | Now | Need |
+| --- | --- | --- |
+| <What> | <current> | <wanted> |
+
+- **Where:** (required; Fix / See also optional)
 
 **[NITPICK] <short title>** — <one line> (`path`).
 
