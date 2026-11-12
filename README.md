@@ -10,16 +10,22 @@ git clone git@github.com:tam-nguyen-yum/agent-configs.git "$HOME/.agent-configs"
 
 ## Setup (one-time)
 
-Add the CLI function to your shell by appending this line to `~/.zshrc`:
+Clone this repo anywhere, then add the CLI function to your shell by appending this line to `~/.zshrc` (use your clone path):
 
 ```sh
-source "$HOME/.agent-configs/agent-configs.sh"
+source "$HOME/Repos/tam_nguyen_agent_configs/agent-configs.sh"
 ```
 
 Then reload your shell:
 
 ```sh
 source ~/.zshrc
+```
+
+Optional: override the configs root (defaults to the directory containing `agent-configs.sh`):
+
+```sh
+export AGENT_CONFIGS_DIR="/path/to/configs"
 ```
 
 ## Usage
@@ -37,7 +43,7 @@ cd ~/projects/byte-helium
 agent-configs byte-helium
 ```
 
-This symlinks everything inside `~/.agent-configs/byte-helium` (`.claude`, `.cursor`, `.github`) into the current directory. An entry that already exists is skipped — pass `-f` / `--force` to replace it:
+This symlinks everything inside `<configs-root>/byte-helium` (`.claude`, `.cursor`, `.github`) into the current directory. The configs root is the directory that contains `agent-configs.sh`, unless `AGENT_CONFIGS_DIR` is set. An entry that already exists is skipped — pass `-f` / `--force` to replace it:
 
 ```sh
 agent-configs -f byte-helium
