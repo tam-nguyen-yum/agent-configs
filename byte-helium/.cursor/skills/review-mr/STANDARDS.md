@@ -6,6 +6,39 @@ On conflict with the **`react-web`** / **`react-native`** skills, those win for 
 
 **dv-commerce is retired.** Do not flag dv-sync or "dv-owned code": `byte-storefronts/*/src/**` is helium-owned. Leftover sync tooling or dv mentions in docs are cleanup debt, not a review blocker.
 
+## Design — works, but bigger or more repeated than it needs to be
+
+Run this pass first. It needs the ticket (SKILL.md, step 1).
+
+**Smallest fix.** Write one line: the smallest change that would fix the ticket. Compare the diff with it.
+
+- The diff does more than the ticket asks (extra refactor, cases nobody reported, a compatibility alias or shim) and the description does not say why → `[SUGGESTION]`. Name the hunks that could go, or be their own MR.
+- A simpler shape fixes the same ticket → `[SUGGESTION]`. Show it in a few lines of code, and say what it gives up, if anything. Only suggest it after reading the callers and checking it still handles the cases the MR's specs cover.
+- `[CRITICAL]` only when the extra part changes behaviour for another brand or screen.
+
+**Already exists.** For each new exported function, hook, component, saga, selector or helper in the diff, search before grading. Search by name and by a word for what it does:
+
+```bash
+grep -rlE "<name>|<what it does>" byte-storefronts/*/src tools apps --include='*.ts' --include='*.tsx' | grep -v '\.spec\.'
+```
+
+Also check platform built-ins, the package's own dependencies and the `catalog:` in `pnpm-workspace.yaml`.
+
+- An existing unit already does it, in the same package, in core or in the other brand → name the original by path and say which knob it is missing. Severity and the "not a copy" cases (web/native twins, module overrides, injected slices, brand re-exports) follow `.cursor/BUGBOT.md`.
+- New code that re-derives near-verbatim what an existing builder/mapper/util already computes → ask for one shared helper, with only the case-specific fields left at the call sites. Otherwise the next spec change must land twice and the copies drift.
+- The finding is for a repeated unit (function, component, saga, fragment). A few similar lines at two call sites are not a finding, and do not ask for a new abstraction to remove them.
+
+**Over-built.** For each new abstraction, count its callers and put the number in the finding:
+
+```bash
+grep -rn "<NewName>" byte-storefronts/*/src apps tools | grep -v '\.spec\.'
+```
+
+- A new wrapper, factory, registry, context, generic helper or config layer with one caller → ask to inline it until a second caller exists.
+- A new option, parameter, prop or flag that no caller in the diff passes; a new allowlist or registry that is empty.
+- A new package, slice, service or module where an existing one could hold the code.
+- More than one new concept in one MR → list them and ask which ones the ticket needs.
+
 ## Architecture — works, but in the wrong place
 
 - **Dependency direction**: every package is classified (tier + platform) in `eslint-local-rules/rules/dependency-direction/registry.js`, and the `dependency-direction` lint rule enforces it. No `dsc-native`/`core-native` imports in web code or `dsc-web`/`core-web` in native — even transitively through a helper — and `brand-kfc` / `brand-tb` never import each other. A new package missing from the registry fails lint; check its classification is right, not just present.
@@ -28,13 +61,11 @@ On conflict with the **`react-web`** / **`react-native`** skills, those win for 
 
 ## Conventions — works, but not how this repo does it
 
-- **Duplicated derivations**: new code that re-derives near-verbatim what an existing builder/mapper/util in the same package already computes (compare against sibling modules, not just the diff). Ask for a shared helper both consume, with only the genuinely case-specific fields left at the call sites — otherwise the next spec change must land twice and the copies silently drift.
 - **Comments & JSDoc**: rare and short — 1–2 lines explaining the non-obvious _why_ (including JSDoc on declarations). Flag comments that restate the code, change history, ticket narrative, or multi-paragraph rationale (belongs in the MR description).
 - **`.cjs` imports in specs**: specs importing a `.cjs` module need a sibling `.d.cts` declaration; never add TS7016 to a typecheck lane, and never silence lint with `require()` + `eslint-disable`.
 - Scopes: `@byte-storefronts/*` = workspace packages, `@byte-helium/*` = apps. Any `@phdv/*` import is an invalid scope that won't resolve — flag it. Workspace packages (and subpath exports) over `../../../` paths.
 - DSC components (`@byte-storefronts/dsc-web` / `dsc-native`) over raw MUI/RN primitives (`button-import` rule).
-- `themeTokens.*` for spacing/colors/typography — no hardcoded values, no `px` suffix on web design tokens.
-- `useStoreSelector`/`useStoreDispatch` from core — never `react-redux` hooks (`no-react-redux-hooks`).
+- `themeTokens.*` for spacing/colors/typography — no hardcoded values.
 - One dispatch with a consolidated payload, not consecutive `dispatch`/`put` calls (`no-consecutive-dispatch`).
 - `type` over `interface`; no `any` (use `unknown` + guards); `data-testid` on interactive elements; user-facing strings through i18n (`useTranslation`).
 - Native: `expo-image` not RN `Image`; `useAppNavigation()` not raw `useNavigation()`.
