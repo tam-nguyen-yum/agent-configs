@@ -44,7 +44,11 @@ Then the ticket. Take the Jira key from the MR title, the branch or the `Closes`
 acli jira workitem view <KEY> --fields "key,summary,description,issuetype" 2>/dev/null
 ```
 
+Ticket with an empty description: read its parent the same way (add `parent` to `--fields` to get the key) and use the parent as the ask. Say in the summary which ticket the ask came from.
+
 No key, or `acli` fails: say so in the summary and use the MR description as the ask. Do not stop the review.
+
+**Prior threads.** Do not repeat a thread that is still open; list open threads in the summary in one line each. A resolved thread is not proof of a fix: check the code at the MR head. If the problem is still there, or only part of it was fixed, report it as a finding and name the resolved thread and what is left.
 
 **Rename the chat immediately** after `glab mr view` returns (do not wait for the review), if the host has a rename tool (Cursor: `rename_chat`):
 
