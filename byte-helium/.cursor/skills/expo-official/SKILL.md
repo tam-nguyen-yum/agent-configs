@@ -9,6 +9,7 @@ description: Applies Expo team official agent guidance from expo/skills (Expo Ro
 
 - For **this monorepo’s** patterns (modules, DSC, Redux, market overrides), follow the project **`react-native`** skill first.
 - Use **this skill** when the task is **Expo/EAS platform** behavior: Router, EAS CLI, credentials, workflows, store submission, SDK upgrades, NativeWind setup, etc.
+- byte-helium native apps are on **Expo SDK 54** (`expo` `^54` in the native app manifests). Prefer the current upstream skill over any older SDK notes.
 
 ## Primary workflow (no Remote Rule required)
 

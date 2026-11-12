@@ -1,6 +1,6 @@
 ---
 name: kfc-web
-description: KFC brand-specific web & native UI patterns — location flow, OccasionFirstDialog, cart dialog, and re-localization. Use when working in byte-storefronts/brand-kfc/, apps/kfc-au-web-app/, apps/kfc-au-native-app/, or when the user mentions KFC location, occasion dialog, cart dialog, re-localize, or store selection.
+description: KFC brand-specific web & native UI patterns — location flow, OccasionFirstDialog, cart page, and re-localization. Use when working in byte-storefronts/brand-kfc/, apps/kfc-au-*, apps/kfc-ca-*, or when the user mentions KFC location, occasion dialog, cart page, re-localize, or store selection.
 ---
 
 # KFC — Brand-Specific Patterns
@@ -17,14 +17,17 @@ description: KFC brand-specific web & native UI patterns — location flow, Occa
 | OccasionFirstDialog (web) | `byte-storefronts/brand-kfc/src/modules/OccasionFirstDialog/index.tsx` |
 | KFC Cart page screen (web) | `byte-storefronts/brand-kfc/src/screens/Cart/index.tsx` |
 | Location chip (header button) | `byte-storefronts/brand-kfc/src/modules/AppBarLocation/LocationButton.tsx` |
-| Native MenuListStackNavigator | `byte-storefronts/brand-kfc/src/native/navigation/MenuListStackNavigator.tsx` |
+| Native MenuListStackNavigator | `byte-storefronts/brand-kfc/src/native/navigation/MenuListStackNavigator/MenuListStackNavigator.tsx` |
+| Brand InteractiveCart wrapper | `byte-storefronts/brand-kfc/src/cart/InteractiveCart/index.tsx` |
 | Core location dialog wiring | `byte-storefronts/core-web/src/location/components/location-dialog/` |
 
+> AU and CA share `@byte-storefronts/brand-kfc`. Market-only differences live in the app (`apps/kfc-au-*` / `apps/kfc-ca-*`, e.g. `src/config.ts` locale).
+>
 > Note: KFC no longer overrides the cart via a `CartDialog` module/`CartDialogModule` (those paths
 > are gone from source; only stale coverage artifacts remain). KFC now has a dedicated `/cart` **page
-> screen** at `byte-storefronts/brand-kfc/src/screens/Cart/index.tsx` that renders core `InteractiveCart`.
+> screen** at `byte-storefronts/brand-kfc/src/screens/Cart/index.tsx` that renders the brand `InteractiveCart` wrapper (which wraps core with `asCards={false}` + `renderLineItem`).
 
-## Dialog pattern (shared by location & cart)
+## Dialog pattern (location / re-localization)
 
 KFC uses **URL-query-param-driven MUI Dialogs** for overlay screens. The pattern is:
 
@@ -44,16 +47,15 @@ KFC uses **URL-query-param-driven MUI Dialogs** for overlay screens. The pattern
 
 KFC renders the cart on a dedicated `/cart` **page screen** (`byte-storefronts/brand-kfc/src/screens/Cart/index.tsx`),
 not a query-param dialog. The screen:
-- Uses a side-by-side desktop layout (items left `xl={7}`, sticky order summary right `xl={4}`).
-- Renders core `InteractiveCart` (from `@byte-storefronts/core-web/cart/components`) for the line-item list,
-  coupons, cross-sell, and loyalty; plus `PaymentSummaryButton` + `AvailableCardPaymentMethods`.
-- `InteractiveCart` is shared across **three** surfaces — the `/cart` page, the `SideCart`
+- Uses a side-by-side desktop layout (`ResponsiveGridItem span={{ large: 7 }}` items, `span={{ large: 4 }}` sticky order summary) — not the old MUI `xl={…}` Grid API.
+- Renders the brand `InteractiveCart` wrapper (`brand-kfc/src/cart/InteractiveCart`), which wraps core `InteractiveCart` from `@byte-storefronts/core-web/cart/components` with `asCards={false}` + `renderLineItem` → `CartLineItem`. Also uses `PaymentSummaryButton` + `AvailableCardPaymentMethods` from the same core export.
+- Core `InteractiveCart` is shared across **three** surfaces — the `/cart` page, the `SideCart`
   (`asCards={false}`), and the generic `CartList` screen — so changes to it affect all three.
   It exposes an optional `renderLineItem` slot for brand-specific line-item UI without forking the component.
 
 ## Native cart presentation
 
-On native, KFC's `MenuListStackNavigator` presents the cart as a **fullScreenModal** with `slide_from_bottom` animation instead of a regular stack push. This gives the cart a modal feel (slides up, swipe down to dismiss) while reusing the same `CartList` screen component.
+On native, KFC's `CART_LIST` screen is a regular stack screen (header only — not `fullScreenModal`). `navigateToCartList` in `brand-kfc/src/hooks/useAppNavigation.native.ts` **resets** the menu stack to menu → cart. `fullScreenModal` + `slide_from_bottom` is used for **Relocalise** (`core-native/src/navigation/Navigation.tsx` `RELOCALISE_MODAL`), not the cart. The generic `modalTransition` in `brand-kfc/src/native/navigation/pageTransition.ts` is stack-wide, not cart-specific.
 
 ## Testing selectors
 
@@ -69,8 +71,9 @@ On native, KFC's `MenuListStackNavigator` presents the cart as a **fullScreenMod
 - Location: don't look for a route change to `/location` — KFC uses a query-param-driven dialog.
   Cart, however, **is** a real `/cart` page route (no longer a dialog).
 - The location dialog content components are in `byte-storefronts/brand-kfc/src/location/` (not in `modules/`)
-- `DeliveryLocationFlow` is imported from `@byte-storefronts/core-web`, not from brand-kfc
-- Cart components (`InteractiveCart`, `PaymentSummaryButton`, etc.) are exported from `@byte-storefronts/core-web/cart`
+- `DeliveryLocationFlow` is imported from `@byte-storefronts/core-web/location/occasion-first-dialog`, not the `@byte-storefronts/core-web` root
+- Cart UI (`InteractiveCart`, `PaymentSummaryButton`, `AvailableCardPaymentMethods`) is exported from `@byte-storefronts/core-web/cart/components` — `@byte-storefronts/core-web/cart` is utils only
+- The `/cart` page imports the brand wrapper `brand-kfc/src/cart/InteractiveCart`, not core directly
 - `InteractiveCart` is shared by the `/cart` page, the side cart, and the generic `CartList` screen —
   brand-specific line-item UI should use its `renderLineItem` slot rather than editing the shared DSC `BasketItem`
-- Native cart uses the same `CartList` screen — only the navigation presentation changes
+- Native cart uses the same `CartList` screen; KFC reaches it via a menu-stack reset, not a fullscreen modal

@@ -5,10 +5,8 @@ description: Schema-driven screen composition in byte-helium — areas/structure
 
 # Blueprint (byte-helium)
 
-The canonical skill lives **in the repo**: read `tools/skills/blueprint/SKILL.md` first — it owns the rules
-(schema anatomy, the render pipeline, `floatingBlocks`, `forceLocalBlueprints` /
-`forceFloatingBlockLocal`, the recipes, and the anti-patterns). Do not duplicate its content here; if it
-conflicts with this file, it wins.
+There is no in-repo `tools/skills/blueprint/SKILL.md` — this file is the source
+of truth. Edit the schema, not the screen.
 
 ## When to reach for it
 
@@ -24,16 +22,46 @@ Strong signals:
 - "make it configurable per market" → check whether a blueprint entry already covers it before adding a
   `FeatureConfig` flag
 
+## Schema anatomy
+
+Types live in `byte-storefronts/types/src/blueprint/index.ts`.
+
+- **Page** → **areas** (`content`, optional `header` / `footer` / sidebars) → **structures** → **blocks**
+- Each block has `type`, optional `attributes`, `styles`, and `visibilityRules`
+- Native schemas also have `floatingBlocks?: BlockSchema[]` for pinned/sticky UI
+- `visibilityRules` can gate on dates, breakpoints, login, occasion, platform, weekdays
+
+## Render pipeline
+
+- Hooks: `byte-storefronts/core/src/blueprint/hooks/useNativeBlueprint.ts`, `useWebBlueprint.ts`
+- Native renderer: `byte-storefronts/core-native/src/blueprint/index.tsx` (`<Blueprint>`)
+- Framework defaults: `core-native/src/blueprint/Block/getPageTypeBlock.ts`, `core-web/.../getPageTypeBlock.ts`
+- An unknown `type` renders `<Unknown>` with no throw — "block missing" is almost always an unregistered type
+
+## Brand layout (do not assume KFC paths for TB)
+
+**KFC** — page schemas at `brand-kfc/src/blueprint/<page>-page.ts`, wired in `brand-kfc/src/blueprint/index.ts` as `webAppBlueprintDependency` / `nativeAppBlueprintDependency`. Brand blocks: `brand-kfc/src/blueprint/{native,web}/register*Blocks.ts`.
+
+**TB** — schemas are split:
+
+- native: `brand-tb/src/native/blueprint/definitions/*`
+- web: `brand-tb/src/web/blueprint/definitions/*`
+- shared: `brand-tb/src/shared/blueprint/`
+- web register: `brand-tb/src/web/blueprint/registerWebBlocks.ts`
+- There is **no** `registerNativeBlocks.ts`. Native apps call `registerBlocks` from the app (`apps/tb-*-native-app/src/App.tsx` or create-home helpers).
+
+## CMS vs local fallback
+
+`forceLocalBlueprints` / `forceFloatingBlockLocal` live on the types and on app/brand config (e.g. `apps/kfc-au-web-app/src/config.ts`). When set, the local `*-page.ts` schema wins over CMS. Use that when a block must ship with the app regardless of Contentful.
+
+Apps load the brand map at startup (`loadBlueprint(nativeAppBlueprintDependency)` in native `loadDependencies.ts`; web via `initApp({ blueprintMap })`).
+
 ## Workflow
 
-1. Read `tools/skills/blueprint/SKILL.md`.
-2. Locate the page blueprint: `byte-storefronts/brand-*/src/blueprint/<page>-page.ts`, wired in
-   `blueprint/index.ts`.
-3. Find whether the block already exists — framework defaults in
-   `core-native/src/blueprint/Block/getPageTypeBlock.ts`, brand blocks in
-   `brand-*/src/blueprint/{native,web}/register*Blocks.ts`.
-4. Prefer a schema edit. Write a new component only if no registered block fits.
-5. Test through the schema (mock `useNativeBlueprint`, assert the declared blocks render) — see the canonical
-   skill's testing section.
+1. Confirm the screen uses `useWebBlueprint` / `useNativeBlueprint`.
+2. Locate the page schema (KFC: `brand-kfc/src/blueprint/<page>-page.ts`; TB: `brand-tb/{native,web,shared}/blueprint/**`).
+3. Find whether the block already exists — framework defaults in `getPageTypeBlock.ts`, brand blocks in the register files above.
+4. Prefer a schema edit. Write a new component only if no registered block fits, then register its `type`.
+5. Test through the schema (mock the blueprint hook, assert the declared blocks render).
 
 Pair with `react-native` / `react-web` for component, styling, and navigation conventions.

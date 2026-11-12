@@ -17,6 +17,7 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 | `@byte-storefronts/core-native-modules` | `byte-storefronts/core-native-modules/src` | Default modules + `getModule()` |
 | `@byte-storefronts/dsc-native` | `byte-storefronts/dsc-native/src` | Design-system components, `useTheme`, theme types |
 | `@byte-storefronts/brand-kfc` / `brand-tb` | `byte-storefronts/brand-[kfc\|tb]/src` | Brand assets, theme, routes, module overrides (`nativeModules`) |
+| `@byte-storefronts/markets` | `byte-storefronts/markets-au` | Market services (e.g. `createAddressProviderService` from `/au`) |
 
 ## Key paths
 
@@ -28,10 +29,27 @@ Every internal import uses the **`@byte-storefronts/*`** scope — there is no `
 | Brand overrides | `byte-storefronts/brand-[kfc\|tb]/src/modules/` (native entry `index.native.ts`, exported as `nativeModules`) |
 | Module prop types | `byte-storefronts/types/src/modules/` |
 
-Apps present under `apps/`: `kfc-au-native-app` and `tb-uk-native-app` (each with a matching `*-e2e` project). App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/tb-uk-native-app`).
+Native apps under `apps/`: `kfc-au-native-app`, `kfc-ca-native-app`, `tb-au-native-app`, `tb-ca-native-app`, `tb-uk-native-app`. Matching `*-e2e` projects exist for all except **tb-ca**. App package names use the `@byte-helium/*` scope (e.g. `@byte-helium/tb-uk-native-app`). Start Metro: `pnpm --filter @byte-helium/<app> start`.
+
+## Where new code goes
+
+`core*` packages ship to every brand — a change there reaches KFC and TB at once. So a feature asked for by one brand starts in that brand's package, not in core.
+
+| Asked for by | Put it in |
+|---|---|
+| One brand (KFC only, TB only) | `byte-storefronts/brand-[kfc\|tb]/src/` |
+| One app / market | `apps/<brand>-<market>-native-app/src/` |
+| Every brand, same behaviour | `core-native*` / `core` — say so before you start |
+
+Editing `core-native*`, `core`, or `dsc-native` for a brand feature is a last resort. It is only right when the brand package genuinely cannot hold the change — a bug every brand hits, or the core module needs a new prop or extension point for the brand to hook into. When that happens:
+
+- Tell the user first, in one sentence, and say why the brand package can't hold it.
+- Keep the core change additive: a new optional prop or hook point, with every other brand rendering exactly what it renders today.
+- Repeat the reason in the MR description — reviewers flag a brand MR that touches core as `[CRITICAL]` (see the `review-mr` skill).
 
 ## Non-negotiables
 
+- **A brand feature goes in the brand package** — only touch `core*` when every brand needs the change (see "Where new code goes").
 - **Use DSC for UI components** (`@byte-storefronts/dsc-native`) — `Text`, `Button`, `Surface`, `Card`, `TextInput`, etc. must come from DSC, not raw RN. Layout/interaction primitives (`View`, `TouchableOpacity`, `ScrollView`, `StyleSheet`) are fine from `react-native` directly.
 - **Unit tests mandatory** for all logic; view-only components only need tests if they contain logic
 - Must work on both **iOS and Android**
@@ -50,7 +68,9 @@ export type MyModuleProps = {
 }
 ```
 
-### 2. Implement in `byte-storefronts/core-native-modules`
+### 2. Implement the default in `byte-storefronts/core-native-modules`
+
+Only when every brand should get this UI. If one brand asked for it, skip to step 4 and build the component in the brand package instead — leave the core default alone.
 
 ```typescript
 // byte-storefronts/core-native-modules/src/modules/MyModule.tsx
@@ -80,9 +100,9 @@ export default MyModule
 
 The default module set lives in `byte-storefronts/core-native-modules/src/index.ts` (an internal `const`, not an exported `defaultModuleDefinition`). Add your module there so `getModule()` can resolve it. Don't import that const directly — go through `getModule()`.
 
-### 4. Brand override (only when needed)
+### 4. Brand implementation or override
 
-Place the override in the brand package and export it via the brand's native module set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.native.ts`, exported as `nativeModules`), which the app registers with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
+Place the brand's version in the brand package and export it via the brand's native module set (`byte-storefronts/brand-[kfc|tb]/src/modules/index.native.ts`, exported as `nativeModules`), which the app registers with `loadModules()` (see step 6). The override keeps the same `MyModuleProps` type:
 
 ```typescript
 // byte-storefronts/brand-kfc/src/modules/MyModule/index.native.tsx
@@ -113,15 +133,17 @@ const MyOrchestrator: React.FC = () => {
 
 ### 6. Wire overrides at app startup
 
-Apps register the brand's overrides in their `App.tsx` with `loadModules()` — it shallow-merges over the defaults:
+Apps register the brand's overrides in `loadDependencies.ts` (not `App.tsx` — that file only mounts the brand root). `loadModules()` shallow-merges over the defaults:
 
 ```typescript
-// apps/kfc-au-native-app/src/App.tsx
+// apps/kfc-au-native-app/src/loadDependencies.ts
 import { loadModules } from '@byte-storefronts/core-native/modules'
-import { nativeModules } from '@byte-storefronts/brand-kfc'
+import { nativeModules, Navigation } from '@byte-storefronts/brand-kfc/native'
 
 loadModules({ ...nativeModules, Navigation })
 ```
+
+`App.tsx` only mounts the brand app (`<KFCNativeApp />` / TB equivalent) with the store created in `loadDependencies.ts`. Same pattern in `kfc-ca-native-app`.
 
 ## Screens
 
@@ -148,9 +170,9 @@ Always use `useAppNavigation()` (typed) — not the raw `useNavigation()` hook. 
 ## Navigation
 
 ```typescript
-import { createStackNavigator } from '@react-navigation/stack'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
-const Stack = createStackNavigator<MyStackParamList>()
+const Stack = createNativeStackNavigator<MyStackParamList>()
 
 export const MyStackNavigator = () => {
   const screenOptions = useStandardScreenOptions()
@@ -212,6 +234,77 @@ import { Image } from 'expo-image'
 <Image source={{ uri }} style={styles.img} contentFit="cover" transition={200} placeholder={blurhash} />
 ```
 
+## Lottie animations
+
+`lottie-react-native` is a `catalog:` dependency of `brand-kfc`,
+`dsc-native`, `core-native` and the native apps (not `brand-tb`). Compositions are plain JSON
+`require`d as `AnimationObject` — either registered in the brand asset registry
+(`brand-*/src/assets.native.ts` + `types/src/brand-assets/image.ts`) when shared,
+or imported locally beside the component when it owns them.
+
+```typescript
+/* eslint-disable global-require, @typescript-eslint/no-require-imports */
+import LottieView from 'lottie-react-native'
+import type { AnimationObject } from 'lottie-react-native'
+
+const animation = require('../../assets/images/thing.json') as AnimationObject
+```
+
+### `renderMode` is a correctness setting, not a performance dial
+
+`renderMode` maps straight to a lottie-ios engine
+(`lottie-react-native/ios/LottieReactNative/ContainerView.swift`):
+
+| Prop | iOS engine | Use when |
+|---|---|---|
+| `"SOFTWARE"` | `.mainThread` | **Any composition containing text layers** — CPU-rendered, renders everything |
+| `"HARDWARE"` | `.coreAnimation` | Shapes/paths only, and you have verified it on device |
+| omitted | `.automatic` | Detects incompatibility and falls back to main thread |
+
+**`"HARDWARE"` puts lottie-ios's `CompatibilityTracker` into abort mode.** On any
+feature the Core Animation engine cannot render — text layers being the common
+one — it fires `LottieLogger.assert`, which is a hard `SIGTRAP` on debug builds.
+The app dies the moment the animation first displays. Unit tests pass, lint
+passes, typecheck passes.
+
+Before choosing `renderMode`, grep the composition for `"ty":5` (text layers). If
+present, it is `SOFTWARE`. Assert the value in a test so nobody "optimises" it
+back.
+
+### Never use `autoPlay`
+
+Play imperatively via ref. On Android `autoPlay` is started twice — by the JS
+wrapper on ref capture and by the native prop manager on every prop commit — and
+the second start cancels the first animator, killing playback and emitting a fake
+`isCancelled: false` completion. `brand-kfc/src/native/components/SplashScreen/`
+documents the full failure mode and the failsafe pattern.
+
+```typescript
+const ref = useRef<LottieView>(null)
+useEffect(() => {
+  if (active) ref.current?.play(startFrame, endFrame)
+  else ref.current?.reset()
+}, [active])
+```
+
+### Driving progress from a gesture
+
+Wrap with `Animated.createAnimatedComponent(LottieView)` and feed
+`animatedProps`. Verify on device — this is the least-proven part of the stack:
+
+```typescript
+const AnimatedLottieView = Animated.createAnimatedComponent(LottieView)
+const animatedProps = useAnimatedProps(() => ({ progress: someShared.value }))
+```
+
+### Reading a composition before writing code
+
+`fr` (frame rate), `ip`/`op` (in/out points), and per-layer `ip`/`op` tell you the
+authored timing; align JS timers to it rather than duplicating it. Layer `ty:5`
+is text, `ty:4` shape, `ty:1` solid, `ty:3` null/parent. Glyphs embedded in
+`chars` mean no font file is needed. A composition whose final frame is empty
+cannot be looped.
+
 ## Lists
 
 Use `FlashList` for long lists (not `FlatList`):
@@ -222,7 +315,6 @@ import { FlashList } from '@shopify/flash-list'
 <FlashList
   data={items}
   renderItem={({ item }) => <ItemCard item={item} />}
-  estimatedItemSize={100}
   keyExtractor={item => item.id}
 />
 ```
@@ -316,21 +408,47 @@ describe('useMyFeature', () => {
 
 ### Run tests
 
-Scope tests to the package you changed — Nx project names are the package names:
+Scope jest to the spec files you changed — never to a whole package:
 
 ```bash
-pnpm nx run @byte-storefronts/core-native:test
-pnpm nx run @byte-storefronts/core-native-modules:test
-pnpm nx run @byte-storefronts/dsc-native:test
-pnpm nx run @byte-storefronts/shared-native:test
+cd byte-storefronts/core-native && pnpm exec jest --coverage=false --maxWorkers=2 \
+  src/path/to/MyModule.spec.tsx
 
-# Target a single file (jest args go after --):
-pnpm nx run @byte-storefronts/core-native-modules:test -- --testPathPattern="MyModule"
+# Fuzzy match on the file path instead of naming it:
+cd byte-storefronts/core-native-modules && pnpm exec jest --coverage=false --maxWorkers=2 \
+  --testPathPattern="MyModule"
 ```
+
+Never run `pnpm --filter <pkg> test` or `turbo run test` locally. A bare package
+run loads every spec in the package (core-native and brand-kfc each have
+hundreds), and `turbo run test` parallelises that across packages — enough to
+take the machine down. Native packages are the worst case: every worker pulls
+in the full React Native dependency graph.
+
+`--testPathPattern` is safe because it filters at file-discovery time. `-t` /
+`--testNamePattern` is **not**: it filters tests *within* suites, so jest still
+loads every spec file to enumerate test names. Always pass `--maxWorkers`
+explicitly for scoped local runs (repo default is `JEST_MAX_WORKERS` or `50%`).
+
+### What jest cannot catch
+
+Green tests are not evidence a native change works. Jest renders against mocks,
+so a prop value the native library rejects at runtime looks identical to a
+correct one — the `renderMode` crash above passed tests, lint and typecheck, and
+killed the app on first display.
+
+Assume unverified whenever a change touches: a native module's props, animation
+engines, gesture recognizers, or platform-specific rendering. Either run it (see
+the `run-native-app` skill) or state plainly what remains unverified. Do not
+present "tests pass" as confidence the feature works.
 
 ### E2E (Maestro)
 
-Maestro smoke flows live under `apps/tb-uk-native-app-e2e/maestro/`. After native app or shared native changes, run the relevant smoke flow locally when practical (E2E can otherwise be left to CI).
+Maestro smoke flows live under `apps/<app>-native-app-e2e/maestro/` (`kfc-au`, `kfc-ca`, `tb-au`, `tb-uk` — there is no `tb-ca-native-app-e2e`). After native app or shared native changes, run the relevant smoke flow locally when practical (E2E can otherwise be left to CI).
+
+Maestro handles taps and scrolls. It **cannot** drag-and-hold, and its
+synthesised swipes may not activate custom RNGH `Pan` recognizers — check the
+`native-e2e-maestro` skill before planning around it.
 
 ## Accessibility checklist
 
@@ -375,3 +493,7 @@ const MyComponent = () => {
 - Ignoring Android back button / keyboard avoidance
 - Using `FlatList` for long lists (use `FlashList` instead)
 - Using the RN `Image` component (use `expo-image` instead)
+- Setting Lottie `renderMode="HARDWARE"` on a composition with text layers (hard crash on iOS debug)
+- Using Lottie `autoPlay` instead of an imperative `play()` (double-start on Android)
+- Treating passing jest tests as verification of a native-side change
+- Building a one-brand feature inside `core-native*` instead of `brand-kfc`/`brand-tb`

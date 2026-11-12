@@ -57,15 +57,18 @@ types in `@byte-storefronts/types`, tests per file.
 
 ## Sinks & payloads
 
-- **KFC AU sinks: GTM (web) + mParticle (native) only. No Firebase for brand
-  events, no loyalty fields** — even when the spec shows Firebase samples or
-  loyalty columns. Ignore them.
-- KFC AU `userType` token: `deriveUserType` in `brand-kfc/src/utils/tracking.ts`
+- **KFC sinks (AU and CA share `brand-kfc`): GTM (web) + mParticle (native)
+  only. No Firebase for brand events, no loyalty fields** — even when the spec
+  shows Firebase samples or loyalty columns. Ignore them. TB native uses
+  `brand-tb/src/native/tracking/FirebaseTrackingClient.ts`.
+- KFC `userType` token: `getUserType` in `brand-kfc/src/utils/tracking.ts`
   — format is `"localised guest"` style (space-separated full words).
-- Reuse the shared mappers/builders (`mapLineItemForCheckout`,
+- Reuse the shared mappers/builders (`buildLineItemTrackingAttributes` /
+  `buildLineItemIdentityAttributes` in `brand-kfc/src/utils/lineItemTracking.ts`,
+  core `mapLineItemForTracking` in `core/src/tracking/mappers/`,
   `mapOccasionToDisposition`, `applyCurrencyFactor`, `formatDeliveryAddress`,
   `getLocalIsoDateTimeString`/`getDeviceTimezone`) — never re-derive inline what
-  a sibling mapper already computes.
+  a sibling mapper already computes. There is no `mapLineItemForCheckout`.
 - PII (address, email, phone): mParticle only — it's the CDP that already holds
   identity. GA4/GTM/Firebase-bound payloads must exclude it. The gate lives in
   each client's mapper, documented there.
@@ -84,7 +87,6 @@ types in `@byte-storefronts/types`, tests per file.
 ## Pre-push gate (mandatory)
 
 1. Tests for every new file; run the affected package tests.
-2. Changeset added (`pnpm changeset`).
-3. **Run the `review-mr` skill on the branch's MR (or local diff against `main`)
+2. **Run the `review-mr` skill on the branch's MR (or local diff against `main`)
    and fix everything at CRITICAL/SUGGESTION level.**
-4. Only push to origin after the review pass is clean and the user confirms.
+3. Only push to origin after the review pass is clean and the user confirms.
