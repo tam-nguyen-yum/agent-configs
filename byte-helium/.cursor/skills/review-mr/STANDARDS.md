@@ -13,6 +13,7 @@ Run this pass first. It needs the ticket (SKILL.md, step 1).
 **Smallest fix.** Write one line: the smallest change that would fix the ticket. Compare the diff with it.
 
 - The diff does more than the ticket asks (extra refactor, cases nobody reported, a compatibility alias or shim) and the description does not say why → `[SUGGESTION]`. Name the hunks that could go, or be their own MR.
+- **Moved re-export.** A new `export * from` or `export { … } from` that keeps old import paths working: grep who imports that file, and check the package's `exports` map. Only in-package callers, and the path is not exported → delete the re-export and point those imports at the new module. A description that says callers stay put does not waive this; the grep is the check. Leave a re-export that `docs/brand-extensions.md` requires (a brand re-exporting `StoreDispatchHook` / `StoreSelectorHook`).
 - A simpler shape fixes the same ticket → `[SUGGESTION]`. Show it in a few lines of code, and say what it gives up, if anything. Only suggest it after reading the callers and checking it still handles the cases the MR's specs cover.
 - `[CRITICAL]` only when the extra part changes behaviour for another brand or screen.
 
@@ -27,6 +28,7 @@ Also check platform built-ins, the package's own dependencies and the `catalog:`
 - An existing unit already does it, in the same package, in core or in the other brand → name the original by path and say which knob it is missing. Severity and the "not a copy" cases (web/native twins, module overrides, injected slices, brand re-exports) follow `.cursor/BUGBOT.md`.
 - New code that re-derives near-verbatim what an existing builder/mapper/util already computes → ask for one shared helper, with only the case-specific fields left at the call sites. Otherwise the next spec change must land twice and the copies drift.
 - The finding is for a repeated unit (function, component, saga, fragment). A few similar lines at two call sites are not a finding, and do not ask for a new abstraction to remove them.
+- **Sibling shape.** When several siblings build the same kind of payload one way (the KFC commerce builders return `{ context, ecommerce, items }`), new code that lists the fields by hand, or in two places → `[SUGGESTION]`. Name the siblings, and say which field could go missing with no test failing.
 
 **Over-built.** For each new abstraction, count its callers and put the number in the finding:
 
@@ -51,8 +53,10 @@ grep -rn "<NewName>" byte-storefronts/*/src apps tools | grep -v '\.spec\.'
   - Another brand's behaviour changes and the description doesn't say why core must hold it → `[CRITICAL]`; name the brand file it belongs in and the other brand's screens that change.
   - A fix every brand needs, or a new extension point, explained in the description → accept; check the other brands keep their current behaviour.
   - Additive (optional field, new export) with no reader outside the MR's brand → at most `[NITPICK]` asking the description to say so.
+  - Before saying another brand's behaviour changes, check that brand reaches the changed line: its client implements the method, its config sets the URL, its app registers the listener. An empty base method means nothing changes for that brand — drop the finding.
 
 - **Brand/market logic in core**: anything KFC- or TB-specific inside `byte-storefronts/core*` belongs in `brand-kfc`/`brand-tb` or the app.
+- **Brand literal in shared code.** A string moved into `core*` that contains a brand (`kfc_`, `tb_`, a brand name in a header, path, or id) stays a finding when a guard makes other brands skip the call. Search `getConfig()` and the other brand for the same header or id (`yumConnect.orgId` and the like). A field that already varies per brand → read it. Suggest moving the file back to the brand only when no such field exists. "Other brands keep current behaviour" and a description that explains the move do not waive the literal. Do not widen "Use what already exists" into a general config search; this check runs only for that literal.
 - **Brand extensions (slices, events, sagas)**: core's Redux surface (`AnyEvent`, root reducer) is closed — brands add at runtime via `store.slice.inject()` / `store.eventListener.inject()` (wrapped in `injectBrandListeners`), never override core slices or events (`docs/brand-extensions.md`). Brand events must use a namespace prefix (`<domain>/...`), type saga effects with `createTypedListenerEffects<BrandEvent>()`, and read injected state through `createInjectedSliceSelector`. Brands re-export core's structural `StoreDispatchHook` / `StoreSelectorHook` — never depend on `react-redux` directly (causes TS2742 in declarations).
 - **Module system**: props type in `@byte-storefronts/types` first; overrides live in the brand package with a key matching the core module export name; consumers resolve via `getModule()`, never import the module set directly; modules don't touch the Redux store directly.
 - **Logic altitude**: side effects and reusable business logic in sagas, not hooks/components. No tracking calls in React components/hooks (`no-tracking-in-react`) — route through sagas/services.
@@ -61,7 +65,7 @@ grep -rn "<NewName>" byte-storefronts/*/src apps tools | grep -v '\.spec\.'
 
 ## Conventions — works, but not how this repo does it
 
-- **Comments & JSDoc**: rare and short — 1–2 lines explaining the non-obvious _why_ (including JSDoc on declarations). Flag comments that restate the code, change history, ticket narrative, or multi-paragraph rationale (belongs in the MR description).
+- **Comments & JSDoc**: rare and short — 1–2 lines explaining the non-obvious _why_ (including JSDoc on declarations). Flag comments that restate the code, change history, ticket narrative, or multi-paragraph rationale (belongs in the MR description). Also flag a comment in `core*` that names one brand's events or values, and a comment that lists callers or events — it goes stale with the next caller.
 - **`.cjs` imports in specs**: specs importing a `.cjs` module need a sibling `.d.cts` declaration; never add TS7016 to a typecheck lane, and never silence lint with `require()` + `eslint-disable`.
 - Scopes: `@byte-storefronts/*` = workspace packages, `@byte-helium/*` = apps. Any `@phdv/*` import is an invalid scope that won't resolve — flag it. Workspace packages (and subpath exports) over `../../../` paths.
 - DSC components (`@byte-storefronts/dsc-web` / `dsc-native`) over raw MUI/RN primitives (`button-import` rule).
@@ -93,6 +97,25 @@ grep -rn "<OldName>\|<old-import-path>" byte-storefronts/<affected-package>/src 
 - A stale registration for the same key elsewhere renders the old UI on that path — `[CRITICAL]`.
 - Same key registered in multiple places must point to the same component unless divergence is clearly intentional (confirm who still imports the old one).
 - Same sweep for renamed translation keys, test IDs, and feature flags.
+- After a value is renamed, the constant key, builder and function names, and comments that list the names match the new value (`FILTERING_ITEMS: 'refineItems'` → `REFINE_ITEMS`). A function whose input got wider (an order, now also a cart) gets a name that fits. `[NITPICK]`.
+
+## Tracking events — sent from the wrong place, or not by every client
+
+Run when the diff touches a tracking client, a tracker method, `trackingEvents.ts`, or a dispatch that a tracking listener reads.
+
+- **Every client.** For each tracker method the MR changes, open `apps/<app>/src/trackingClients.ts` for every app it reaches and list the clients that implement the method. A client that does not implement it uses the empty method in `AbstractTrackingClient` and sends nothing. Each row of the description's before/after table must hold for every client that sends the event (the KFC AU app sends GA4 `purchase` through core-native `FirebaseTrackingClient` as well as mParticle). A client the MR missed → `[SUGGESTION]`: fix it, or list it under "Not in this MR".
+- **Every path that sends it.** A new dispatch or tracker call inside a shared function (a navigation helper, a hook, a saga used by several flows): grep every caller of that function, and every listener of the action. Each caller that is not the ticket's case sends an extra event (app launch, an error fallback, the middle of sign-in). Each other listener sends another event on the same action (`ACCOUNT_LOGIN_CLICKED` also sends Firebase `login_started` and `interact_account`). An event on a wrong path → `[CRITICAL]`.
+- **Where it fires.** The event fires where the catalog or the description says: screen opens, button click, after sign-out. A navigation helper misses deep links and can count one flow twice.
+- **Every field on the new path.** For a new trigger, read where each context field comes from on that path (`eventTriggerScreen`, `context`, `flowType`). Compare with the other dispatchers of the same action. A value they read from config that the MR writes as a literal → `[SUGGESTION]`; name the siblings.
+- **A new wait before the tracker call.** A new `call` (a network request, retries) before the tracker runs can move the event after the next page view. Fields read when the event is sent (`location.pathname`, the current screen) then change. Ask for a time limit (`race` with `delay`) or a line in the description for analytics.
+
+## New call to a backend — works in tests, differs in the real flow
+
+Run when the diff adds a service or fetch call to an existing flow. Write these as questions (`[SUGGESTION]`).
+
+- **Same id.** Compare the id the new call sends with what the existing callers of that API send (token `sub` vs `selectAccountId`). A different source → ask whether it is the same id.
+- **Data just created.** When the call reads data the flow created seconds ago (a new account, a new order), ask what the API returns then: defaults, empty, or not-found. Check how handlers of similar endpoints treat it (`marketingPreferenceRequestHandler` handles "User not found"). Ask for a network capture when the specs only mock a 200.
+- **Wait.** A slow call before navigation or tracking changes what runs first. See "A new wait before the tracker call".
 
 ## Recent history — works, but undoes an earlier fix
 
@@ -108,6 +131,8 @@ git log -L<start>,<end>:<path> origin/main --format='%h %ad %s' --date=short -s
 ## Tests & MR hygiene
 
 - Unit tests for new/changed logic; tests describe behavior, not implementation; edge cases exercised (judge from the diff — don't run coverage). E2E can be left to CI.
+- **New condition.** For each new `&&`, `||`, `?:`, or early return, name the spec case that supplies the other value. A builder that defaults that input and no case overrides it means the branch is untested. A case that only checks the later fallback (the service returns null, so the fields are omitted) does not pin the guard. Ask for the case that fails if the condition is deleted, next to the case that shows the call happens. `[SUGGESTION]`. `[CRITICAL]` only when that branch changes what the user or the analytics payload sees and no test locks it.
+- **Description claims.** For each row of a before/after table and each "covers A, B and C" line in the description, find the code that makes it true. A row that holds for only some clients or platforms, a listed path the code does not reach, or a path the code reaches that is not listed → `[SUGGESTION]`; `[CRITICAL]` when the user or the analytics payload sees it.
 - **No changeset required**: the changesets flow is superseded (see `docs/releases.md`), so never flag a missing or deleted `.changeset/*.md`.
 - MR title in conventional-commit format; a `breaking:` MR includes a migration guide in its description.
 - Title ticket, branch ticket and `Closes` line agree, or the description says how the tickets relate (`docs/making-a-change.md`).

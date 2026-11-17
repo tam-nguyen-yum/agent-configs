@@ -52,6 +52,26 @@ Hits KFC and TB, web and native. The new spec asserts this broken result.
 ```
 ````
 
+## Good finding — event sent from a shared helper
+
+The MR put a `signInStart` dispatch in a navigation helper that several flows call. Specs pass; the event also fires where nobody clicked.
+
+````markdown
+**[CRITICAL] `signInStart` also fires at app launch and in the middle of sign-in**
+
+KFC AU app, member whose saved session fails to load its profile on launch.
+
+| | Ticket case | Also fires on |
+| --- | --- | --- |
+| Trigger | user confirms sign-out | `onGetProfileError` at app launch; complete-your-profile `onError` |
+| Events sent | `signInStart` | `signInStart` + Firebase `login_started` + `interact_account` |
+
+Move the dispatch to a native-only listener on `ACCOUNT_LOGOUT_CONFIRM_CLICKED`.
+
+- **Where:** `byte-storefronts/brand-kfc/src/hooks/useAppNavigation.native.ts` (snippet from the diff)
+- **Checked:** read `usePasswordlessNavigation`: calls the same helper on profile error
+````
+
 Required pieces: severity, scenario, comparison table, path, snippet from **this** MR's diff. Fix is optional and only when it is one obvious line. Do not put the table's content back into a paragraph after the title.
 
 ## False positive — justified core edit
@@ -62,6 +82,15 @@ Example: MR description — "All brands hit a zero-weight cart-hydration bug in 
 
 - Wrong: `[CRITICAL] core edit belongs in brand-kfc`.
 - Right: drop it, or at most `[NITPICK]` if the description is thin but the spec + additive shape are clearly cross-brand.
+
+## False positive — core change that other brands never reach
+
+Do **not** say a core tracking change hurts other brands before checking that their clients implement the method.
+
+Example: a shared core saga now omits consent fields when `url.userPreferences` is not set. Only the KFC GTM and mParticle clients implement `trackRegistrationFinish`; every other client uses the empty method in `AbstractTrackingClient`.
+
+- Wrong: `[SUGGESTION] brands without url.userPreferences now lose marketingEmails / receiveSMS`.
+- Right: drop it. Those brands never sent the fields.
 
 Before calling something a bug, check the MR's own tests/description for intent — if a test expects the behaviour, downgrade to `[SUGGESTION]` or drop it.
 

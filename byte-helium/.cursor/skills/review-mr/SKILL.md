@@ -85,8 +85,8 @@ git diff <old_sha> origin/<source_branch> -- $( { git diff --name-only origin/ma
 ## 2. Load project context
 
 - `AGENTS.md` — always.
-- [STANDARDS.md](STANDARDS.md) — design (smallest fix, duplication, over-built code), architecture, conventions, performance, leftover wiring, recent history, tests/MR hygiene, secrets/a11y.
-- `.cursor/BUGBOT.md` and `.gitlab/duo/mr-review-instructions.yaml` — always. They hold the team's rules for copies, brand rules in shared code, no-op tests, failure paths, market config, e2e and CI. Apply them as written; STANDARDS.md does not repeat them. For the Duo file, apply a rule only to files that match its `fileFilters`.
+- [STANDARDS.md](STANDARDS.md) — design (smallest fix, duplication, over-built code), architecture, conventions, performance, leftover wiring, tracking events, new backend calls, recent history, tests/MR hygiene, secrets/a11y.
+- `.cursor/BUGBOT.md` and `.gitlab/duo/mr-review-instructions.yaml` — always. They hold the team's rules for copies, brand rules in shared code, no-op tests, failure paths, market config, e2e and CI. Apply them as written; STANDARDS.md does not repeat them, except **Moved re-export**, **Brand literal in shared code**, and **New condition**, which narrow the matching Bugbot lines — follow STANDARDS there. For the Duo file, apply a rule only to files that match its `fileFilters`.
 - Platform conventions: the **`react-web`** / **`react-native`** skill for the side the diff touches, when installed.
 - Native release/fingerprint changes (native deps, config plugins, `eas.json`, `app.config.ts`, `.fingerprintignore`, `tools/app-config/src`, `X.Y.0` version line): load `.agents/skills/native-release/SKILL.md` and `docs/releases.md`.
 - Process docs as needed: `docs/making-a-change.md`, `docs/making-a-breaking-change.md`, `docs/brand-extensions.md`, `docs/testing.md`, `docs/cicd.md`, `docs/releases.md`.
@@ -98,8 +98,9 @@ CI proves the code runs. Find what CI can't: a design bigger than the ticket, co
 Order:
 
 1. **Design pass first** (STANDARDS.md, "Design"). Before reading the diff in detail, write one line for yourself: the smallest change that would fix the ticket. Then compare the diff with that line.
-2. Then the other sections.
-3. **Prove it.** Check every `[CRITICAL]` before reporting it.
+2. **Description pass.** Check each claim in the description against the code (STANDARDS.md, "Description claims").
+3. Then the other sections.
+4. **Prove it.** Check every `[CRITICAL]` before reporting it.
 
 ### Prove it
 
@@ -120,6 +121,8 @@ Each `[CRITICAL]` carries a **Checked** line that says how it was checked. Pick 
   ```
 
   Skip this for a source file the MR adds. Check `git status --porcelain` is empty again afterwards.
+
+  Reverting the whole file does not show that a new condition is tested. For one condition, read the spec: the helper's default for that argument, and whether any case overrides it. See STANDARDS.md, "New condition".
 
 - **Read** — no such checkout. Follow the path at the MR head with `git show` / `git grep`: name the caller, the input that breaks, and the line that gives the wrong result.
 
